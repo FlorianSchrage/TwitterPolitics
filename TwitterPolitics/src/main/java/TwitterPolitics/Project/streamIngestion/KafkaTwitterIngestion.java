@@ -1,4 +1,4 @@
-package streamIngestion;
+package TwitterPolitics.Project.streamIngestion;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -56,6 +56,7 @@ public class KafkaTwitterIngestion
 //	         @Override
 	         public void onStatus(Status status) {      
 	            queue.offer(status);
+	            System.out.println(status.getUser().getName() + " : " + status.getText());
 
 	            // System.out.println("@" + status.getUser().getScreenName() 
 	            //   + " - " + status.getText());
@@ -123,16 +124,16 @@ public class KafkaTwitterIngestion
 	      int i = 0;
 	      int j = 0;
 	      
-	      while(i < 10) {
-	    	 System.out.println("Trying to poll...");
+	      while(i < 1000) {
+//	    	 System.out.println("Trying to poll...");
 	         Status ret = queue.poll();
 	         
 	         if (ret == null) {
 	            Thread.sleep(100);
 	            i++;
-	            System.out.println("Content is null");
+//	            System.out.println("Content is null");
 	         }else {
-	        	System.out.println("ret != null");
+	        	System.out.println("Text: " + ret.getText());
 	            for(HashtagEntity hashtage : ret.getHashtagEntities()) {
 	               System.out.println("Hashtag: " + hashtage.getText());
 	               producer.send(new ProducerRecord<String, String>(

@@ -3,7 +3,7 @@ package TwitterPolitics.Project;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import streamIngestion.KafkaTwitterIngestion;
+import TwitterPolitics.Project.streamIngestion.KafkaTwitterIngestion;
 
 /**
  * Hello world!
