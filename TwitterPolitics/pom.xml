@@ -21,5 +21,21 @@
       <version>3.8.1</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+    <groupId>org.twitter4j</groupId>
+    <artifactId>twitter4j-core</artifactId>
+    <version>4.0.6</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.kafka</groupId>
+    <artifactId>kafka_2.12</artifactId>
+    <version>1.0.0</version>
+</dependency>
+<dependency>
+    <groupId>org.twitter4j</groupId>
+    <artifactId>twitter4j-stream</artifactId>
+    <version>4.0.6</version>
+</dependency>
+
   </dependencies>
 </project>
