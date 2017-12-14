@@ -18,8 +18,11 @@ import scala.Tuple2;
 
 public class StreamProcessor {
 	
+	private static final String HADOOP_COMMON_PATH = "C:/Users/D060237/git/BDM_Lab3_Training/src/main/resources/winutils";
+	
 	public void secondDraft()
 	{
+		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
         SparkConf sparkConfig = new SparkConf().setAppName("TwitterPolitics").setMaster("local[*]");
         JavaSparkContext sparkCtx = new JavaSparkContext(sparkConfig);
         JavaStreamingContext jStreamCtx = new JavaStreamingContext(sparkCtx, new Duration(1000));
