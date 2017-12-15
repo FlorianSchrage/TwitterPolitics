@@ -14,23 +14,18 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
+import TwitterPolitics.Project.streamProcessing.StreamProcessor;
+
 
 public class KafkaTwitterIngestion
 {
 	private static final String TWITTER_CONFIG_FILE_PATH = "src/main/resources/twitter_configuration.txt";
+	private static final int QUEUE_CAPACITY = 1000;
+	
 	private LinkedBlockingQueue<Status> queue;
 	
 	public void firstDraft() throws Exception {
-	      queue = new LinkedBlockingQueue<Status>(1000);
-	      
-//	      if(args.length < 5){
-//	         System.out.println(
-//	            "Usage: KafkaTwitterProducer <twitter-consumer-key>
-//	            <twitter-consumer-secret> <twitter-access-token>
-//	            <twitter-access-token-secret>
-//	            <topic-name> <twitter-search-keywords>");
-//	         return;
-//	      }
+	      queue = new LinkedBlockingQueue<Status>(QUEUE_CAPACITY);
 	      
 	      String[] twitterConfigs = getTwitterConfigs();
 	      
@@ -38,8 +33,8 @@ public class KafkaTwitterIngestion
 	      String consumerSecret = twitterConfigs[1];
 	      String accessToken = twitterConfigs[2];
 	      String accessTokenSecret = twitterConfigs[3];
-	      String topicName = "Sample";
-	      String[] topicNameArr = { "Sample" };
+	      String topicName = StreamProcessor.TOPIC;
+	      String[] topicNameArr = { StreamProcessor.TOPIC };
 //	      String[] arguments = args.clone();
 //	      String[] keyWords = Arrays.copyOfRange(arguments, 5, arguments.length);
 
@@ -125,26 +120,25 @@ public class KafkaTwitterIngestion
 	      int j = 0;
 	      
 	      while(i < 1000) {
-//	    	 System.out.println("Trying to poll...");
-	         Status ret = queue.poll();
+	         Status status = queue.poll();
 	         
-	         if (ret == null) {
-	            Thread.sleep(100);
+	         if (status == null) {
 	            i++;
 //	            System.out.println("Content is null");
-	         }else {
-	        	System.out.println("Text: " + ret.getText());
-	            for(HashtagEntity hashtage : ret.getHashtagEntities()) {
-	               System.out.println("Hashtag: " + hashtage.getText());
-	               producer.send(new ProducerRecord<String, String>(
-	                  topicName, Integer.toString(j++), hashtage.getText()));
+	         }
+	         else {
+	        	System.out.println("Text: " + status.getText());
+	            for(HashtagEntity hashtag : status.getHashtagEntities()) {
+	               System.out.println("Hashtag: " + hashtag.getText());
 	            }
+	            producer.send(new ProducerRecord<String, String>(
+		                  topicName, Integer.toString(j++), status));
 	         }
 	      }
 	      producer.close();
 	      Thread.sleep(5000);
 	      twitterStream.shutdown();
-	      System.out.println("Finished");
+	      System.out.println("Finished after " + i + "null statuses");
 	   }
 	
 	//TODO: Make private
