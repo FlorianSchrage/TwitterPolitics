@@ -18,6 +18,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 
 import TwitterPolitics.Project.streamIngestion.KafkaTwitterIngestion;
+import TwitterPolitics.Project.streamIngestion.Record;
 import kafka.serializer.StringDecoder;
 import scala.Tuple2;
 
@@ -33,8 +34,8 @@ public class StreamProcessor {
         JavaSparkContext sparkCtx = new JavaSparkContext(sparkConfig);
         JavaStreamingContext jStreamCtx = new JavaStreamingContext(sparkCtx, new Duration(1000));
 
-        HashMap<String, Integer> topicsAndReplicas = new HashMap<String, Integer>();
-        topicsAndReplicas.put("Sample", 10);
+//        HashMap<String, Integer> topicsAndReplicas = new HashMap<String, Integer>();
+//        topicsAndReplicas.put("Sample", 10);
         
         //localhost:2181
         //GroupId muss nur unique sein
@@ -43,7 +44,7 @@ public class StreamProcessor {
 
         Map<String, String> kafkaParams = new HashMap<>();
         kafkaParams.put("metadata.broker.list", "localhost:9092");
-        Set<String> topics = Collections.singleton("Sample");
+        Set<String> topics = Collections.singleton(TOPIC);
 
         JavaPairInputDStream<String, String> record = KafkaUtils.createDirectStream(jStreamCtx,
         		String.class, String.class, StringDecoder.class, StringDecoder.class, kafkaParams, topics);
@@ -53,7 +54,12 @@ public class StreamProcessor {
         record.print();
         
         record.mapToPair(f -> {
-        	System.out.println("Processing " + f._1 + "/////" + f._2);
+//        	Record thisRecord = Record.getByJsonString(f._2);
+        	System.out.println("Processing " + f._2);
+//        	System.out.println("Text: " + thisRecord.getText());
+//        	System.out.println("Language: " + thisRecord.getLanguage());
+//        	System.out.println("Location: " + thisRecord.getLocation().toString());
+//        	System.out.println("Place: " + thisRecord.getPlace().toString());
         	return new Tuple2<String, String>(f._1 + "/////" + f._2 ,"Hello World!");
         }).print();
         

@@ -34,7 +34,7 @@ public class KafkaTwitterIngestion
 	      String accessToken = twitterConfigs[2];
 	      String accessTokenSecret = twitterConfigs[3];
 	      String topicName = StreamProcessor.TOPIC;
-	      String[] topicNameArr = { StreamProcessor.TOPIC };
+//	      String[] topicNameArr = { StreamProcessor.TOPIC };
 //	      String[] arguments = args.clone();
 //	      String[] keyWords = Arrays.copyOfRange(arguments, 5, arguments.length);
 
@@ -96,8 +96,8 @@ public class KafkaTwitterIngestion
 	      };
 	      twitterStream.addListener(listener);
 	      
-	      FilterQuery query = new FilterQuery().track(topicNameArr);
-	      twitterStream.filter(query);
+	      FilterQuery query = new FilterQuery().language("en");//track(topicNameArr);
+	      twitterStream.sample("en");//filter(query);
 
 	      Thread.sleep(5000);
 	      
@@ -119,7 +119,7 @@ public class KafkaTwitterIngestion
 	      int i = 0;
 	      int j = 0;
 	      
-	      while(i < 1000) {
+	      while(i < 1000000) {
 	         Status status = queue.poll();
 	         
 	         if (status == null) {
@@ -127,18 +127,22 @@ public class KafkaTwitterIngestion
 //	            System.out.println("Content is null");
 	         }
 	         else {
-	        	System.out.println("Text: " + status.getText());
+//	        	System.out.println("Text: " + status.getText());
 	            for(HashtagEntity hashtag : status.getHashtagEntities()) {
 	               System.out.println("Hashtag: " + hashtag.getText());
 	            }
+	            String recordJson = new Record(status).toString();
+//	            System.out.println("Sending " + recordJson);
+	            System.out.println("Sending " + status.getText());
 	            producer.send(new ProducerRecord<String, String>(
-		                  topicName, Integer.toString(j++), status));
+		                  topicName, Integer.toString(j++), status.getText()));//recordJson));
 	         }
 	      }
+	      Thread.sleep(60000);
 	      producer.close();
 	      Thread.sleep(5000);
 	      twitterStream.shutdown();
-	      System.out.println("Finished after " + i + "null statuses");
+	      System.out.println("Finished after " + i + " null statuses");
 	   }
 	
 	//TODO: Make private
