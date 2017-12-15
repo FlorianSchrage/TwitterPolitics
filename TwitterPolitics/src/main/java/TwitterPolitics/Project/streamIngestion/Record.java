@@ -9,6 +9,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.google.gson.Gson;
+
 import twitter4j.GeoLocation;
 import twitter4j.Place;
 import twitter4j.Status;
@@ -35,6 +37,15 @@ public class Record {
 		location = tweet.getGeoLocation();
 		place = tweet.getPlace();
 
+	}
+
+	public static Record getByJsonString(String jsonRecord) {
+		return new Gson().fromJson(jsonRecord, Record.class);
+	}
+
+	@Override
+	public String toString() {
+		return new Gson().toJson(this).toString();
 	}
 
 	/**
