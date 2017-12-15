@@ -34,8 +34,8 @@ public class Record {
 		hashtagList = Arrays.stream(tweet.getHashtagEntities()).map(h -> h.getText()).collect(Collectors.toList());
 		creationDate = tweet.getCreatedAt();
 		language = tweet.getLang();
-		location = tweet.getGeoLocation();
-		place = tweet.getPlace();
+//		location = tweet.getGeoLocation();
+//		place = tweet.getPlace();
 
 	}
 

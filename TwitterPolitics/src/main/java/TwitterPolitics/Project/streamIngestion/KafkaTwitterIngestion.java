@@ -51,7 +51,7 @@ public class KafkaTwitterIngestion
 //	         @Override
 	         public void onStatus(Status status) {      
 	            queue.offer(status);
-	            System.out.println(status.getUser().getName() + " : " + status.getText());
+//	            System.out.println(status.getUser().getName() + " : " + status.getText());
 
 	            // System.out.println("@" + status.getUser().getScreenName() 
 	            //   + " - " + status.getText());
@@ -119,7 +119,10 @@ public class KafkaTwitterIngestion
 	      int i = 0;
 	      int j = 0;
 	      
-	      while(i < 1000000) {
+	      long t= System.currentTimeMillis();
+	      long end = t+600000;
+	      while(System.currentTimeMillis() < end) {
+//	      while(i < 1000000) {
 	         Status status = queue.poll();
 	         
 	         if (status == null) {
@@ -129,13 +132,19 @@ public class KafkaTwitterIngestion
 	         else {
 //	        	System.out.println("Text: " + status.getText());
 	            for(HashtagEntity hashtag : status.getHashtagEntities()) {
-	               System.out.println("Hashtag: " + hashtag.getText());
+//	               System.out.println("Hashtag: " + hashtag.getText());
 	            }
-	            String recordJson = new Record(status).toString();
+	            Record record = new Record(status);
+	            String recordJson = record.toString();
+	            if(record.getLocation() != null)
+	            	System.out.println("Location found in " + recordJson);
+	            if(record.getPlace() != null)
+	            	System.out.println("Place found in " + recordJson);
+	            
 //	            System.out.println("Sending " + recordJson);
-	            System.out.println("Sending " + status.getText());
+//	            System.out.println("Sending " + status.getText());
 	            producer.send(new ProducerRecord<String, String>(
-		                  topicName, Integer.toString(j++), status.getText()));//recordJson));
+		                  topicName, Integer.toString(j++), recordJson));
 	         }
 	      }
 	      Thread.sleep(60000);
@@ -143,6 +152,7 @@ public class KafkaTwitterIngestion
 	      Thread.sleep(5000);
 	      twitterStream.shutdown();
 	      System.out.println("Finished after " + i + " null statuses");
+	      System.out.println(j + " Tweets overall processed");
 	   }
 	
 	//TODO: Make private
