@@ -3,6 +3,7 @@ package TwitterPolitics.Project.streamProcessing;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,6 +31,8 @@ public class StreamProcessor {
 	private static final int WINDOW_DURATION_SECS = 300;//3600;
 	private static final int SLIDE_DURATION_SECS = 1;
 	
+	private List<String> initialHashtags;
+	
 	public void secondDraft()
 	{
 		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
@@ -53,9 +56,8 @@ public class StreamProcessor {
         JavaPairInputDStream<String, String> records = KafkaUtils.createDirectStream(jStreamCtx,
         		String.class, String.class, StringDecoder.class, StringDecoder.class, kafkaParams, topics);
 
-        
-//        System.out.println("I will print...");
-//        record.print();
+
+        System.out.println("++++++++++ START ++++++++++");
         
         //Just take Records that contain hashtags
         JavaPairDStream<String, String> recordsWithHashtags =
@@ -65,18 +67,46 @@ public class StreamProcessor {
         		});
         
         
-        JavaPairDStream<String, Integer> hashtags = recordsWithHashtags.
-                flatMapToPair(recordString -> {
-                	Record record = Record.getByJsonString(recordString._2);        			
+        //Start: Alle Tweets mit mindestens einem iHashtag
+        
+        JavaPairDStream<Tuple2<String, String>, Integer> hashtagTuples = recordsWithHashtags.
+        		flatMapToPair(recordString -> {
+        			Record record = Record.getByJsonString(recordString._2);      
         			
-        			ArrayList<Tuple2<String, Integer>> recordHashtags = new ArrayList<>();
-        			record.getHashtagList().stream().forEach(h -> recordHashtags.add(new Tuple2<String, Integer>(h, 1)));
+        			ArrayList<Tuple2<Tuple2<String, String>, Integer>> iHashAndAssociated = new ArrayList<>();
+        			ArrayList<String> initialHashtagsInThisTweet = new ArrayList<>();
+        			ArrayList<String> additionalHashtagsInThisTweet = new ArrayList<>();
+        			record.getHashtagList().stream().forEach(h -> {
+        				if(initialHashtags.contains(h))
+        					initialHashtagsInThisTweet.add(h);
+        				else
+        					additionalHashtagsInThisTweet.add(h);
+        			});
+        			
+        			if(initialHashtagsInThisTweet.isEmpty())
+        				throw new IllegalStateException("No initial Hashtags in this Record!");
+
+        			additionalHashtagsInThisTweet.stream().forEach(h1 -> {
+        				initialHashtagsInThisTweet.stream().forEach(h2 -> {
+        					iHashAndAssociated.add(new Tuple2<Tuple2<String, String>, Integer>(new Tuple2<String, String>(h2, h1),1));
+        				});
+        			});
+        			
+        			return iHashAndAssociated;
+        		});
         
-                	return recordHashtags;
-                });
+//        JavaPairDStream<String, Integer> hashtags = recordsWithHashtags.
+//                flatMapToPair(recordString -> {
+//                	Record record = Record.getByJsonString(recordString._2);        			
+//        			
+//        			ArrayList<Tuple2<String, Integer>> recordHashtags = new ArrayList<>();
+//        			record.getHashtagList().stream().forEach(h -> recordHashtags.add(new Tuple2<String, Integer>(h, 1)));
+//        
+//                	return recordHashtags;
+//                });
         
         
-        JavaPairDStream<String, Integer> hashtagsCounts = hashtags.
+        JavaPairDStream<Tuple2<String, String>, Integer> coOccurringHashtagCounts = hashtagTuples.
                 reduceByKeyAndWindow(
                         (i1,i2) -> i1+i2,
                         (i1,i2) -> i1-i2,
@@ -84,7 +114,8 @@ public class StreamProcessor {
                         new Duration(SLIDE_DURATION_SECS * 1000));
         
         
-        hashtagsCounts.print();
+        
+//        hashtagsCounts.print();
         
         
 //        record.mapToPair(f -> {
