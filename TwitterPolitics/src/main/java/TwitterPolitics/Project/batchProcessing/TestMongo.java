@@ -60,11 +60,27 @@ public class TestMongo {
 
 	}
 
-	@SuppressWarnings("deprecation")
-	public static void readAllData(Collections collection) {
+	public static void printAllData(Collections collection) {
 		System.out.println("Print all data in " + collection.getCollectionName());
 		getCollection(collection).find().forEach((Block<Document>) d -> {
 			System.out.println(d.toJson());
 		});
 	}
+
+	// TODO: currently not working ...
+	// public static List<Record> getRecords(Collections collection) {
+	// System.out.println("Get records from " + collection.getCollectionName());
+	// List<Record> records = new ArrayList<>();
+	// getCollection(collection).find().forEach((Block<Document>) d -> {
+	// Record currentRecord = Record.getByJsonString(d.toJson());
+	//
+	// if (currentRecord != null) {
+	// records.add(currentRecord);
+	// } else {
+	// System.out.println("ERROR: Was not able to create Record from: " + d.toJson());
+	// }
+	//
+	// });
+	// return records;
+	// }
 }
