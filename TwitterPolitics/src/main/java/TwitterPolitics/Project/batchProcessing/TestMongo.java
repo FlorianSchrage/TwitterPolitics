@@ -3,12 +3,17 @@
  */
 package TwitterPolitics.Project.batchProcessing;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.bson.Document;
+import org.json.JSONArray;
 
 import com.mongodb.Block;
 import com.mongodb.MongoClient;
@@ -19,11 +24,12 @@ import com.mongodb.spark.MongoSpark;
 public class TestMongo {
 
 	public static final String RECORD = "record";
+	public static final String TOPIC = "topic";
 	public static final String DB_NAME = "twitterTopics";
 	static JavaSparkContext jsc;
 
 	public enum Collections {
-		TWEETS("tweets"), RESULTS("results");
+		TWEETS("tweets"), RESULTS("results"), TOPICS("topics");
 
 		Collections(String name) {
 			collectionName = name;
@@ -51,6 +57,7 @@ public class TestMongo {
 
 	@SuppressWarnings("deprecation")
 	public static void saveToMongo(JavaPairDStream<String, String> stream, Collections collection) {
+		// TODO: remove remove ;)
 		removeCollection(collection);
 		stream.toJavaDStream().map(f -> new Document(RECORD, f._2)).foreachRDD(new Function<JavaRDD<Document>, Void>() {
 			private static final long serialVersionUID = 1L;
@@ -98,6 +105,34 @@ public class TestMongo {
 
 		jsc = new JavaSparkContext(sc);
 		return jsc;
+	}
+
+	/**
+	 * @param wordsWithTopicRelatedValues
+	 * @param results
+	 */
+	public static void saveToMongo(HashMap<String, JSONArray> data, Collections collection) {
+		removeCollection(collection);
+		System.out.println("Before insert: " + getCollection(collection).count() + " documents found");
+		List<Document> documents = new ArrayList<>();
+		data.forEach((s, j) -> documents.add(new Document(RECORD, j.toString()).append("_id", s)));
+		getCollection(collection).insertMany(documents);
+		System.out.println("After insert: " + getCollection(collection).count() + " documents found");
+	}
+
+	public static void saveTopicsToMongo(HashMap<Integer, List<String>> data) {
+		removeCollection(Collections.TOPICS);
+		System.out.println("Before insert: " + getCollection(Collections.TOPICS).count() + " documents found");
+
+		List<Document> documents = new ArrayList<>();
+		data.forEach((i, l) -> {
+			final StringBuffer words = new StringBuffer();
+			l.forEach(w -> words.append(w + ", "));
+			String description = words.toString().substring(0, words.length() - 2);
+			documents.add(new Document(TOPIC, description).append("_id", i));
+		});
+		getCollection(Collections.TOPICS).insertMany(documents);
+		System.out.println("After insert: " + getCollection(Collections.TOPICS).count() + " documents found");
 	}
 
 	// TODO: currently not working ...

@@ -3,36 +3,28 @@
  */
 package TwitterPolitics.Project.batchProcessing;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.regex.Pattern;
+import java.util.HashMap;
+import java.util.List;
 
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.ml.clustering.LDA;
 import org.apache.spark.ml.clustering.LDAModel;
 import org.apache.spark.ml.feature.CountVectorizer;
 import org.apache.spark.ml.feature.CountVectorizerModel;
 import org.apache.spark.ml.feature.Tokenizer;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.mllib.linalg.Vectors;
-import org.apache.spark.sql.Column;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.catalyst.expressions.GenericRow;
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json4s.JsonAST.JValue;
-
-import scala.Tuple2;
-import scala.collection.Seq;
-import scala.collection.immutable.List;
 
 /**
  * @author Steffen Terheiden
@@ -41,6 +33,9 @@ import scala.collection.immutable.List;
 public class LDATopicCreation {
 
 	public static void main(String[] args) {
+		int NUMBER_OF_TOPICS = 10;
+		int NUMBER_OF_WORDS_TO_DESCRIBE_A_TOPIC = 5;
+
 		System.out.println("LDATopicCreation running...");
 		TestMongo.getSparkContext(TestMongo.Collections.TWEETS).setLogLevel("ERROR");
 		SQLContext sqlContext = new SQLContext(TestMongo.getSparkContext(TestMongo.Collections.TWEETS));
@@ -63,11 +58,7 @@ public class LDATopicCreation {
 
 		DataFrame sentenceDataFrame = sqlContext.createDataFrame(jrdd, schema).drop("label");
 		Tokenizer tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words");
-		// TODO: solve problems with links
-		// RegexTokenizer regexTokenizer = new RegexTokenizer()
-		// .setInputCol("sentence")
-		// .setOutputCol("words")
-		// .setPattern("\\W");
+
 		DataFrame wordsDataFrame = tokenizer.transform(sentenceDataFrame).drop("sentence");
 		wordsDataFrame.show();
 
@@ -76,69 +67,65 @@ public class LDATopicCreation {
 				.setOutputCol("features")
 				.setMinDF(2)
 				.fit(wordsDataFrame);
-		Arrays.stream(cvModel.vocabulary()).forEach(s -> System.out.println("Param Ma: " + s));
+		String[] vocabulary = cvModel.vocabulary();
+		Arrays.stream(vocabulary).forEach(s -> System.out.println("Vocabulary: " + s));
 		DataFrame featureDataFrame = cvModel.transform(wordsDataFrame);
 		featureDataFrame.show();
 
 		// Trains a LDA model
 		LDA lda = new LDA()
-				.setK(10)
-				.setMaxIter(10);
+				.setK(NUMBER_OF_TOPICS)
+				.setMaxIter(30);
 		LDAModel model = lda.fit(featureDataFrame);
 
 		// performance evaluation
 		// System.out.println("logLikelihood: " + model.logLikelihood(featureDataFrame));
 		// System.out.println("logPerplexity: " + model.logPerplexity(featureDataFrame));
 
-		// Shows the result
-		DataFrame topics = model.describeTopics(5);
-		Column termIndices = topics.col("termIndices");
-		System.out.println(termIndices.getItem("termIndices"));
+		// TODO: set reasonable maximum number, get them from featue data frame ...
+		int maxNumberOfTerms = 250;
+		DataFrame topics = model.describeTopics(maxNumberOfTerms);
+		HashMap<String, JSONArray> wordsWithTopicRelatedValues = new HashMap<>();
+		HashMap<Integer, List<String>> topicsWithDescription = new HashMap<>();
 
-		Seq<LogicalPlan> children = topics.logicalPlan().children();
-		List<Tuple2<String, JValue>> jsonFields = children.apply(0).jsonFields();
-
-		System.out.println(jsonFields);
-		topics.show(false);
-		model.transform(featureDataFrame).show(false);
-
-		// LDATopicCreation processor = new LDATopicCreation();
-		// processor.createTopics(10);
-		// SQLContext sqlContext = new SQLContext(TestMongo.getSparkContext(TestMongo.Collections.TWEETS));
-
-		// StructType schema = new StructType(new StructField[] {
-		// new StructField("text", new ArrayType(DataTypes.StringType, true), false, Metadata.empty())
-		// });
-		// DataFrame df = sqlContext.createDataFrame(jrdd, schema);
-		//
-		// // fit a CountVectorizerModel from the corpus
-		// CountVectorizerModel cvModel = new CountVectorizer()
-		// .setInputCol("text")
-		// .setOutputCol("feature")
-		// .setMinDF(2) // a term must appear in more or equal to 2 documents to be included in the vocabulary
-		// .fit(df);
-		//
-		// cvModel.transform(df).show();
-
-	}
-
-	private void createTopics(int k) {
-
-	}
-
-	private static class ParseVector implements Function<String, Row> {
-		private static final Pattern separator = Pattern.compile(" ");
-
-		@Override
-		public Row call(String line) {
-			String[] tok = separator.split(line);
-			double[] point = new double[tok.length];
-			for (int i = 0; i < tok.length; ++i) {
-				point[i] = Double.parseDouble(tok[i]);
+		topics.takeAsList(NUMBER_OF_TOPICS).forEach(r -> {
+			// System.out.println("Indices: " + r.getList(1)); // get indices, 2 ->> get weights
+			List<Integer> indices = r.getList(1);// get indices
+			List<Double> weights = r.getList(2);// get weights (double)
+			if (weights.size() != indices.size()) {
+				System.out.println("ERROR: Something went wrong. Indices and weights should be of same length.");
 			}
-			Vector[] points = { Vectors.dense(point) };
-			return new GenericRow(points);
-		}
+			for (int i = 0; i < indices.size(); i++) {
+				String word = vocabulary[indices.get(i)];
+				double weight = weights.get(i);
+				// System.out.println("Word: " + word + " Weight: " + weight + " Topic: " + r.get(0));
+				JSONArray weightsForTopics = wordsWithTopicRelatedValues.get(word);
+				if (weightsForTopics != null) {
+					wordsWithTopicRelatedValues.put(word, weightsForTopics.put(new JSONObject().put(Integer.toString((int) r.get(0)), weight)));
+				} else {
+					wordsWithTopicRelatedValues.put(word, new JSONArray().put(new JSONObject().put(Integer.toString((int) r.get(0)), weight)));
+				}
+
+				if (i < NUMBER_OF_WORDS_TO_DESCRIBE_A_TOPIC) {
+					List<String> listOfWords = topicsWithDescription.get((int) r.get(0));
+					if (listOfWords == null) {
+						listOfWords = new ArrayList<>();
+					}
+					listOfWords.add(word);
+					topicsWithDescription.put((int) r.get(0), listOfWords);
+
+				}
+
+			}
+		});
+		TestMongo.saveToMongo(wordsWithTopicRelatedValues, TestMongo.Collections.RESULTS);
+		TestMongo.saveTopicsToMongo(topicsWithDescription);
+
+		topics.show(false);
+		// model.transform(featureDataFrame).show(false);
+		TestMongo.printAllData(TestMongo.Collections.RESULTS);
+		System.out.println();
+		TestMongo.printAllData(TestMongo.Collections.TOPICS);
 	}
 
 }
