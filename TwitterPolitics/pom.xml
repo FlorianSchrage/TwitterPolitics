@@ -58,6 +58,14 @@
             <artifactId>spark-streaming_2.11</artifactId>
             <version>1.6.3</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-mllib -->
+<dependency>
+    <groupId>org.apache.spark</groupId>
+    <artifactId>spark-mllib_2.11</artifactId>
+    <version>1.6.3</version>
+    <scope>provided</scope>
+</dependency>
+        
         
         <!-- https://mvnrepository.com/artifact/org.mongodb.spark/mongo-spark-connector -->
 <dependency>
@@ -72,6 +80,11 @@
     <artifactId>gson</artifactId>
     <version>2.8.2</version>
 </dependency>
-
+<!-- https://mvnrepository.com/artifact/org.json/json -->
+<dependency>
+    <groupId>org.json</groupId>
+    <artifactId>json</artifactId>
+    <version>20171018</version>
+</dependency>
   </dependencies>
 </project>

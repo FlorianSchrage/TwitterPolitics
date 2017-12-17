@@ -3,7 +3,9 @@
  */
 package TwitterPolitics.Project.batchProcessing;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.bson.Document;
@@ -12,10 +14,13 @@ import com.mongodb.Block;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.spark.MongoSpark;
 
 public class TestMongo {
 
+	public static final String RECORD = "record";
 	public static final String DB_NAME = "twitterTopics";
+	static JavaSparkContext jsc;
 
 	public enum Collections {
 		TWEETS("tweets"), RESULTS("results");
@@ -40,9 +45,14 @@ public class TestMongo {
 		return getMongoDBClient().getDatabase(DB_NAME).getCollection(collection.getCollectionName());
 	}
 
+	private static void removeCollection(Collections collection) {
+		getCollection(collection).drop();
+	}
+
 	@SuppressWarnings("deprecation")
 	public static void saveToMongo(JavaPairDStream<String, String> stream, Collections collection) {
-		stream.toJavaDStream().map(f -> new Document(f._1, f._2)).foreachRDD(new Function<JavaRDD<Document>, Void>() {
+		removeCollection(collection);
+		stream.toJavaDStream().map(f -> new Document(RECORD, f._2)).foreachRDD(new Function<JavaRDD<Document>, Void>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -65,6 +75,29 @@ public class TestMongo {
 		getCollection(collection).find().forEach((Block<Document>) d -> {
 			System.out.println(d.toJson());
 		});
+	}
+
+	public static JavaRDD<Document> getRDDs(Collections collection) {
+		return MongoSpark.load(getSparkContext(collection));
+	}
+
+	/**
+	 * @param collection
+	 * @return
+	 */
+	public static JavaSparkContext getSparkContext(Collections collection) {
+		if (jsc != null)
+			return jsc;
+
+		String connectionString = "mongodb://127.0.0.1/" + DB_NAME + "." + collection.getCollectionName();
+		SparkConf sc = new SparkConf()
+				.setMaster("local")
+				.setAppName("MongoSparkConnector")
+				.set("spark.mongodb.input.uri", connectionString)
+				.set("spark.mongodb.output.uri", connectionString);
+
+		jsc = new JavaSparkContext(sc);
+		return jsc;
 	}
 
 	// TODO: currently not working ...
