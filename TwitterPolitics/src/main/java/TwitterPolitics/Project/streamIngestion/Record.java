@@ -19,9 +19,10 @@ import twitter4j.Status;
  * @author Steffen Terheiden
  *
  */
-public class Record {
+public class Record implements scala.Serializable {
 	String text;
 	List<String> hashtagList = new ArrayList<>();
+	List<String> cleanedWords;
 	Date creationDate = new Date();
 	String language;
 	// twitter4j class, used as simple holder for the pair(latitude, longitude)
@@ -58,7 +59,7 @@ public class Record {
 		return new Gson().toJson(this).toString();
 	}
 
-	public static class Place {
+	public static class Place implements scala.Serializable {
 		public Place() {
 			super();
 		}
@@ -290,7 +291,7 @@ public class Record {
 
 	}
 
-	public static class Location {
+	public static class Location implements scala.Serializable {
 
 		public static Location getLocation(GeoLocation geoLocation) {
 			if (geoLocation == null)
@@ -401,6 +402,14 @@ public class Record {
 	 */
 	public Place getPlace() {
 		return place;
+	}
+	
+	public List<String> getCleanedWords() {
+		return cleanedWords;
+	}
+
+	public void setCleanedWords(List<String> cleanedWords) {
+		this.cleanedWords = cleanedWords;
 	}
 
 }

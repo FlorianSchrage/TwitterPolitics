@@ -3,7 +3,10 @@ package TwitterPolitics.Project.streamIngestion;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -96,8 +99,17 @@ public class KafkaTwitterIngestion
 	      };
 	      twitterStream.addListener(listener);
 	      
-	      FilterQuery query = new FilterQuery().language("en");//track(topicNameArr);
-	      twitterStream.sample("en");//filter(query);
+//	      FilterQuery query = new FilterQuery().language("en");//track(topicNameArr);
+	      
+	      String[] testarr = new String[400];
+	      List<String> testlist = StreamProcessor.getInitialHashtags();
+	      System.out.println("Lenght: " + testlist.size());
+	      for (int i = 0; i < testarr.length; i++) {
+			testarr[i] = "#" + testlist.get(i);
+	      }
+	      
+	      FilterQuery query = new FilterQuery().track(testarr).language("en");//StreamProcessor.getInitialHashtags().toArray(new String[0]));
+	      twitterStream.filter(query);//sample("en");
 
 	      Thread.sleep(5000);
 	      
@@ -136,10 +148,10 @@ public class KafkaTwitterIngestion
 	            }
 	            Record record = new Record(status);
 	            String recordJson = record.toString();
-	            if(record.getLocation() != null)
-	            	System.out.println("Location found in " + recordJson);
-	            if(record.getPlace() != null)
-	            	System.out.println("Place found in " + recordJson);
+//	            if(record.getLocation() != null)
+//	            	System.out.println("Location found in " + recordJson);
+//	            if(record.getPlace() != null)
+//	            	System.out.println("Place found in " + recordJson);
 	            
 //	            System.out.println("Sending " + recordJson);
 //	            System.out.println("Sending " + status.getText());
