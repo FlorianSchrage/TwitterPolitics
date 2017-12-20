@@ -21,7 +21,9 @@ import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.spark.MongoSpark;
 
-public class TestMongo {
+import TwitterPolitics.Project.streamIngestion.Record;
+
+public class MongoDBConnector {
 
 	public static final String RECORD = "record";
 	public static final String TOPIC = "topic";
@@ -56,10 +58,10 @@ public class TestMongo {
 	}
 
 	@SuppressWarnings("deprecation")
-	public static void saveToMongo(JavaPairDStream<String, String> stream, Collections collection) {
-		// TODO: remove remove ;)
+	public static void saveToMongo(JavaPairDStream<String, Record> records, Collections collection) {
+		// TODO: remove remove ;) and improve save method
 		removeCollection(collection);
-		stream.toJavaDStream().map(f -> new Document(RECORD, f._2)).foreachRDD(new Function<JavaRDD<Document>, Void>() {
+		records.toJavaDStream().map(f -> new Document(RECORD, f._2.getCleanedWords())).foreachRDD(new Function<JavaRDD<Document>, Void>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override

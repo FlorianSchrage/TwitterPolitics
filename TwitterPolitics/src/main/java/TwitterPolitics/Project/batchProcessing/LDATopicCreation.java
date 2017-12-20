@@ -4,7 +4,6 @@
 package TwitterPolitics.Project.batchProcessing;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -33,16 +32,16 @@ import org.json.JSONObject;
 public class LDATopicCreation {
 
 	public static void main(String[] args) {
-		int NUMBER_OF_TOPICS = 10;
-		int NUMBER_OF_WORDS_TO_DESCRIBE_A_TOPIC = 5;
+		int NUMBER_OF_TOPICS = 15;
+		int NUMBER_OF_WORDS_TO_DESCRIBE_A_TOPIC = 10;
 
 		System.out.println("LDATopicCreation running...");
-		TestMongo.getSparkContext(TestMongo.Collections.TWEETS).setLogLevel("ERROR");
-		SQLContext sqlContext = new SQLContext(TestMongo.getSparkContext(TestMongo.Collections.TWEETS));
-		JavaRDD<Row> jrdd = TestMongo.getRDDs(TestMongo.Collections.TWEETS).map(d -> {
+		MongoDBConnector.getSparkContext(MongoDBConnector.Collections.TWEETS).setLogLevel("ERROR");
+		SQLContext sqlContext = new SQLContext(MongoDBConnector.getSparkContext(MongoDBConnector.Collections.TWEETS));
+		JavaRDD<Row> jrdd = MongoDBConnector.getRDDs(MongoDBConnector.Collections.TWEETS).map(d -> {
 			// System.out.println("Processing: " + d.toJson());
 			try {
-				return RowFactory.create(0, new JSONObject(new JSONObject(d.toJson()).getString(TestMongo.RECORD)).getString("text"));
+				return RowFactory.create(0, new JSONObject(d.toJson()).getJSONArray(MongoDBConnector.RECORD).join(" ").replaceAll("\"", ""));
 			} catch (JSONException e) {
 				System.out.println(e);
 				System.out.println("No JSON: " + d.toJson());
@@ -55,35 +54,40 @@ public class LDATopicCreation {
 				new StructField("label", DataTypes.IntegerType, false, Metadata.empty()),
 				new StructField("sentence", DataTypes.StringType, false, Metadata.empty())
 		});
-
 		DataFrame sentenceDataFrame = sqlContext.createDataFrame(jrdd, schema).drop("label");
+
+		// just split by space to create data frame
 		Tokenizer tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words");
-
 		DataFrame wordsDataFrame = tokenizer.transform(sentenceDataFrame).drop("sentence");
-		wordsDataFrame.show();
 
+		// create term frequency
 		CountVectorizerModel cvModel = new CountVectorizer()
 				.setInputCol("words")
 				.setOutputCol("features")
 				.setMinDF(2)
 				.fit(wordsDataFrame);
 		String[] vocabulary = cvModel.vocabulary();
-		Arrays.stream(vocabulary).forEach(s -> System.out.println("Vocabulary: " + s));
-		DataFrame featureDataFrame = cvModel.transform(wordsDataFrame);
-		featureDataFrame.show();
+		// Arrays.stream(vocabulary).forEach(s -> System.out.println("Vocabulary: " + s));
+		DataFrame tfDataFrame = cvModel.transform(wordsDataFrame);
+
+		// // compute TF_IDF
+		// IDF idf = new IDF().setInputCol("termFrequency").setOutputCol("features");
+		// IDFModel idfModel = idf.fit(tfDataFrame);
+		// DataFrame idfDataFrame = idfModel.transform(tfDataFrame);
 
 		// Trains a LDA model
 		LDA lda = new LDA()
 				.setK(NUMBER_OF_TOPICS)
-				.setMaxIter(30);
-		LDAModel model = lda.fit(featureDataFrame);
+				.setMaxIter(50);
+		LDAModel model = lda.fit(tfDataFrame);
 
 		// performance evaluation
 		// System.out.println("logLikelihood: " + model.logLikelihood(featureDataFrame));
 		// System.out.println("logPerplexity: " + model.logPerplexity(featureDataFrame));
 
-		// TODO: set reasonable maximum number, get them from featue data frame ...
-		int maxNumberOfTerms = 250;
+		// extract topics and related weights for each word
+		// create description of topics
+		int maxNumberOfTerms = vocabulary.length;
 		DataFrame topics = model.describeTopics(maxNumberOfTerms);
 		HashMap<String, JSONArray> wordsWithTopicRelatedValues = new HashMap<>();
 		HashMap<Integer, List<String>> topicsWithDescription = new HashMap<>();
@@ -118,14 +122,15 @@ public class LDATopicCreation {
 
 			}
 		});
-		TestMongo.saveToMongo(wordsWithTopicRelatedValues, TestMongo.Collections.RESULTS);
-		TestMongo.saveTopicsToMongo(topicsWithDescription);
 
-		topics.show(false);
+		MongoDBConnector.saveToMongo(wordsWithTopicRelatedValues, MongoDBConnector.Collections.RESULTS);
+		MongoDBConnector.saveTopicsToMongo(topicsWithDescription);
+
+		// topics.show(false);
 		// model.transform(featureDataFrame).show(false);
-		TestMongo.printAllData(TestMongo.Collections.RESULTS);
+		MongoDBConnector.printAllData(MongoDBConnector.Collections.RESULTS);
 		System.out.println();
-		TestMongo.printAllData(TestMongo.Collections.TOPICS);
+		MongoDBConnector.printAllData(MongoDBConnector.Collections.TOPICS);
 	}
 
 }
