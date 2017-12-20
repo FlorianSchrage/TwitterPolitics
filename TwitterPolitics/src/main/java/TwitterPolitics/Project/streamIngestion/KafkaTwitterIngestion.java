@@ -3,9 +3,6 @@ package TwitterPolitics.Project.streamIngestion;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -25,9 +22,11 @@ public class KafkaTwitterIngestion
 	private static final String TWITTER_CONFIG_FILE_PATH = "src/main/resources/twitter_configuration.txt";
 	private static final int QUEUE_CAPACITY = 1000;
 	
+	private static final int DEFAULT_RUNTIME_MINS = 10;
+	
 	private LinkedBlockingQueue<Status> queue;
 	
-	public void firstDraft() throws Exception {
+	public void ingestTwitterStream(int runtime) throws Exception {
 	      queue = new LinkedBlockingQueue<Status>(QUEUE_CAPACITY);
 	      
 	      String[] twitterConfigs = getTwitterConfigs();
@@ -99,8 +98,6 @@ public class KafkaTwitterIngestion
 	      };
 	      twitterStream.addListener(listener);
 	      
-//	      FilterQuery query = new FilterQuery().language("en");//track(topicNameArr);
-	      
 	      String[] testarr = new String[400];
 	      List<String> testlist = StreamProcessor.getInitialHashtags();
 	      System.out.println("Lenght: " + testlist.size());
@@ -128,13 +125,12 @@ public class KafkaTwitterIngestion
 	         "org.apache.kafka.common.serialization.StringSerializer");
 	      
 	      Producer<String, String> producer = new KafkaProducer<String, String>(props);
-	      int i = 0;
-	      int j = 0;
+	      long i = 0;
+	      long j = 0;
 	      
-	      long t= System.currentTimeMillis();
-	      long end = t+600000;
+	      long t = System.currentTimeMillis();
+	      long end = t + 60000 * runtime;
 	      while(System.currentTimeMillis() < end) {
-//	      while(i < 1000000) {
 	         Status status = queue.poll();
 	         
 	         if (status == null) {
@@ -143,9 +139,9 @@ public class KafkaTwitterIngestion
 	         }
 	         else {
 //	        	System.out.println("Text: " + status.getText());
-	            for(HashtagEntity hashtag : status.getHashtagEntities()) {
+//	            for(HashtagEntity hashtag : status.getHashtagEntities()) {
 //	               System.out.println("Hashtag: " + hashtag.getText());
-	            }
+//	            }
 	            Record record = new Record(status);
 	            String recordJson = record.toString();
 //	            if(record.getLocation() != null)
@@ -153,10 +149,8 @@ public class KafkaTwitterIngestion
 //	            if(record.getPlace() != null)
 //	            	System.out.println("Place found in " + recordJson);
 	            
-//	            System.out.println("Sending " + recordJson);
-//	            System.out.println("Sending " + status.getText());
 	            producer.send(new ProducerRecord<String, String>(
-		                  topicName, Integer.toString(j++), recordJson));
+		                  topicName, Long.toString(j++), recordJson));
 	         }
 	      }
 	      Thread.sleep(60000);
@@ -167,8 +161,7 @@ public class KafkaTwitterIngestion
 	      System.out.println(j + " Tweets overall processed");
 	   }
 	
-	//TODO: Make private
-	public String[] getTwitterConfigs() throws FileNotFoundException, IOException {
+	private String[] getTwitterConfigs() throws FileNotFoundException, IOException {
 		Properties props = new Properties();
         props.load(new FileReader(TWITTER_CONFIG_FILE_PATH));
 
@@ -179,6 +172,23 @@ public class KafkaTwitterIngestion
 
         String[] result = { consumerKey, consumerSecret, accessToken, accessTokenSecret };
         return result;
+	}
+	
+	public static void main(String args[]) {
+		KafkaTwitterIngestion kafkaTwitter = new KafkaTwitterIngestion();
+		int runtime = DEFAULT_RUNTIME_MINS;
+		
+		if(args.length > 0) {
+			try {
+				runtime = Integer.parseInt(args[0]);
+			} catch (NumberFormatException e) {}
+		}
+		
+		try {
+			kafkaTwitter.ingestTwitterStream(runtime);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 }

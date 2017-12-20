@@ -34,12 +34,14 @@ import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.*;
 import org.apache.spark.streaming.api.java.*;
 import org.apache.spark.streaming.kafka.KafkaUtils;
+import org.bson.Document;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.google.common.io.Files;
 
-import TwitterPolitics.Project.batchProcessing.TestMongo;
+import TwitterPolitics.Project.batchProcessing.MongoDBConnector;
 import TwitterPolitics.Project.streamIngestion.KafkaTwitterIngestion;
 import TwitterPolitics.Project.streamIngestion.Record;
 import kafka.serializer.StringDecoder;
@@ -53,7 +55,7 @@ public class StreamProcessor<K> {
 	public static final String TOPIC = "Politics";
 	
 	private static final int WINDOW_DURATION_SECS = 300;//3600;
-	private static final int SLIDE_DURATION_SECS = 1;
+	private static final int SLIDE_DURATION_SECS = 1; //TODO: 300
 	private static final double OCCURENCE_RATIO_THRESHOLD = 0.0025;
 	
 	private static SparkConf sparkConfig;
@@ -64,6 +66,11 @@ public class StreamProcessor<K> {
 	private static List<String> initialHashtags;
 	private static List<String> additionalHashtags;
 	private static int initialHashtagCount;
+	
+	private static final int MONGO_QUERY_INTERVAL_MS = 1000;
+	private static long lastMongoQueryTime;
+	private static Map<String, JSONArray> wordTopics;
+	private static String[] topicNames;
 	
 	private static int empty;
 	private static int noInitial;
@@ -306,6 +313,95 @@ public class StreamProcessor<K> {
         		});
 
         cleanValidRecords.cache();
+        MongoDBConnector.saveToMongo(cleanValidRecords, MongoDBConnector.Collections.TWEETS);
+        
+        JavaPairDStream<String, Record> recordWithTopics = cleanValidRecords
+        		.mapToPair(recordTuple -> {
+        			Record record = recordTuple._2;
+        			List<String> words = record.getCleanedWords();
+
+        			//Query every minute
+        			if(wordTopics == null || lastMongoQueryTime == 0 || (lastMongoQueryTime + MONGO_QUERY_INTERVAL_MS) < System.currentTimeMillis()) {
+
+        				JavaRDD<Document> wordTopicsRDD = MongoDBConnector.getRDDs(MongoDBConnector.Collections.RESULTS);
+        				List<Document> wordTopicsList = wordTopicsRDD.collect();
+        				wordTopics = new HashMap<>();
+        				for (Iterator<Document> iterator = wordTopicsList.iterator(); iterator.hasNext();) {
+        					Document document = iterator.next();
+
+        					try {
+        						String key = document.getString("_id");
+        						JSONArray value = new JSONArray(document.getString(MongoDBConnector.RECORD));
+        						wordTopics.put(key, value);
+        					} catch (JSONException e) {
+        						e.printStackTrace();
+        					}
+        				}
+
+        				JavaRDD<Document> topicsRDD = MongoDBConnector.getRDDs(MongoDBConnector.Collections.TOPICS);
+        				List<Document> topicsList = topicsRDD.collect();
+        				topicNames = new String[topicsList.size()];
+
+        				for (Iterator<Document> iterator = topicsList.iterator(); iterator.hasNext();) {
+        					Document document = iterator.next();
+
+        					int index = Integer.parseInt(document.getString("_id"));
+        					String name = document.getString(MongoDBConnector.TOPIC);
+
+        					if(topicNames[index] != null)
+        						throw new IllegalStateException("Duplicate Topics in Topic List!");
+
+        					topicNames[index] = name;
+        				}
+
+        				lastMongoQueryTime = System.currentTimeMillis();
+        			}
+
+        			double[] weightsPerTopic = new double[topicNames.length];
+
+        			for (Iterator<String> iterator = words.iterator(); iterator.hasNext();) {
+        				String word = iterator.next();
+        				JSONArray weights = wordTopics.get(word);
+
+        				if(weights == null)
+        					continue;
+
+
+        				double[] weightsPerTopicForThisWord = new double[topicNames.length];
+
+        				for (int i = 0; i < weights.length(); i++) {
+        					JSONObject topicAndWeight = weights.getJSONObject(i);
+        					int index = Integer.parseInt(topicAndWeight.keys().next());
+
+        					if(weightsPerTopicForThisWord[index] != 0.0)
+        						throw new IllegalStateException("Duplicate Topics in Result!");
+
+        					weightsPerTopicForThisWord[i] = topicAndWeight.getDouble((index + ""));
+        					Arrays.setAll(weightsPerTopic, j -> weightsPerTopic[j] + weightsPerTopicForThisWord[j]);
+        				}
+        			}
+
+        			double max = 0.0;
+        			int topicNumber = 0;
+        			for (int i = 1; i < weightsPerTopic.length; i++) {
+        				if (weightsPerTopic[i] > max) {
+        					topicNumber = i;
+        					max = weightsPerTopic[i];
+        				}
+        			}
+
+        			record.setTopic(topicNames[topicNumber]);
+
+        			return new Tuple2<String, Record>(recordTuple._1, record);
+        		});
+        
+        recordWithTopics.foreachRDD(f -> {
+        	f.foreach(g -> {
+        		System.out.println(g._1 + ": " + g._2.getText() + "\n \t Topic: " + g._2.getTopic());
+        	});
+        });
+
+        
 //        cleanValidRecords.print();
         
 //        cleanValidRecords.foreachRDD(rdd -> {

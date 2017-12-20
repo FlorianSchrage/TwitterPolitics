@@ -25,6 +25,7 @@ public class Record implements scala.Serializable {
 	List<String> cleanedWords;
 	Date creationDate = new Date();
 	String language;
+	String topic;
 	// twitter4j class, used as simple holder for the pair(latitude, longitude)
 	Location location;
 	// TODO: change to more general holder, since it is twitter specific
@@ -410,6 +411,14 @@ public class Record implements scala.Serializable {
 
 	public void setCleanedWords(List<String> cleanedWords) {
 		this.cleanedWords = cleanedWords;
+	}
+
+	public String getTopic() {
+		return topic;
+	}
+
+	public void setTopic(String topic) {
+		this.topic = topic;
 	}
 
 }
