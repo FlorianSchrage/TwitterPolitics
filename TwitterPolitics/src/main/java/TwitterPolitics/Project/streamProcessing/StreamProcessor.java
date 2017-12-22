@@ -79,7 +79,12 @@ public class StreamProcessor<K> {
 	public static void secondDraft()
 	{
 		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
-        sparkConfig = new SparkConf().setAppName("TwitterPolitics").setMaster("local[*]");
+		String connectionString = "mongodb://127.0.0.1/" + MongoDBConnector.DB_NAME + "." + "tweets";				
+        sparkConfig = new SparkConf()
+        		.setAppName("TwitterPolitics")
+        		.setMaster("local[*]")
+        		.set("spark.mongodb.input.uri", connectionString)
+				.set("spark.mongodb.output.uri", connectionString);
         sparkCtx = new JavaSparkContext(sparkConfig);
         sqlCtx = new SQLContext(sparkCtx);
         jStreamCtx = new JavaStreamingContext(sparkCtx, new Duration(1000));
@@ -330,8 +335,15 @@ public class StreamProcessor<K> {
         					Document document = iterator.next();
 
         					try {
-        						String key = document.getString("_id");
-        						JSONArray value = new JSONArray(document.getString(MongoDBConnector.RECORD));
+        						String key = document.get("_id").toString();
+        						ArrayList<String> abc = (ArrayList<String>) document.get(MongoDBConnector.RECORD);
+        						
+        						System.out.println("_id: " + key);
+        						for (Iterator iterator2 = abc.iterator(); iterator2.hasNext();) {
+									System.out.println("Element: " + iterator2.next());
+									
+								}
+        						JSONArray value = new JSONArray(document.get(MongoDBConnector.RECORD));
         						wordTopics.put(key, value);
         					} catch (JSONException e) {
         						e.printStackTrace();
@@ -345,7 +357,7 @@ public class StreamProcessor<K> {
         				for (Iterator<Document> iterator = topicsList.iterator(); iterator.hasNext();) {
         					Document document = iterator.next();
 
-        					int index = Integer.parseInt(document.getString("_id"));
+        					int index = Integer.parseInt(document.get("_id").toString());
         					String name = document.getString(MongoDBConnector.TOPIC);
 
         					if(topicNames[index] != null)
@@ -480,4 +492,13 @@ public class StreamProcessor<K> {
 		
 		StreamProcessor.secondDraft();
 	}
+
+	public static JavaSparkContext getSparkCtx() {
+		return sparkCtx;
+	}
+
+	public static SparkConf getSparkConfig() {
+		return sparkConfig;
+	}
+	
 }

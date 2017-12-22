@@ -22,6 +22,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.spark.MongoSpark;
 
 import TwitterPolitics.Project.streamIngestion.Record;
+import TwitterPolitics.Project.streamProcessing.StreamProcessor;
 
 public class MongoDBConnector {
 
@@ -95,17 +96,22 @@ public class MongoDBConnector {
 	 * @return
 	 */
 	public static JavaSparkContext getSparkContext(Collections collection) {
-		if (jsc != null)
-			return jsc;
+//		if (jsc != null)
+//			return jsc;
 
-		String connectionString = "mongodb://127.0.0.1/" + DB_NAME + "." + collection.getCollectionName();
-		SparkConf sc = new SparkConf()
-				.setMaster("local")
-				.setAppName("MongoSparkConnector")
-				.set("spark.mongodb.input.uri", connectionString)
-				.set("spark.mongodb.output.uri", connectionString);
+//		String connectionString = "mongodb://127.0.0.1/" + DB_NAME + "." + collection.getCollectionName();
+//		SparkConf sc = new SparkConf()
+//				.setMaster("local")
+//				.setAppName("MongoSparkConnector")
+//				.set("spark.mongodb.input.uri", connectionString)
+//				.set("spark.mongodb.output.uri", connectionString);
+//
+//		jsc = new JavaSparkContext(sc);
 
-		jsc = new JavaSparkContext(sc);
+//		StreamProcessor.getSparkConfig()
+//				.set("spark.mongodb.input.uri", connectionString)
+//				.set("spark.mongodb.output.uri", connectionString);
+		jsc = StreamProcessor.getSparkCtx();
 		return jsc;
 	}
 
