@@ -6,10 +6,9 @@ package TwitterPolitics.Project.batchProcessing;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.bson.Document;
@@ -20,6 +19,7 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.spark.MongoSpark;
+import com.mongodb.spark.config.ReadConfig;
 
 import TwitterPolitics.Project.streamIngestion.Record;
 import TwitterPolitics.Project.streamProcessing.StreamProcessor;
@@ -29,7 +29,6 @@ public class MongoDBConnector {
 	public static final String RECORD = "record";
 	public static final String TOPIC = "topic";
 	public static final String DB_NAME = "twitterTopics";
-	static JavaSparkContext jsc;
 
 	public enum Collections {
 		TWEETS("tweets"), RESULTS("results"), TOPICS("topics");
@@ -88,32 +87,35 @@ public class MongoDBConnector {
 	}
 
 	public static JavaRDD<Document> getRDDs(Collections collection) {
-		return MongoSpark.load(getSparkContext(collection));
+		Map<String, String> readOverrides = new HashMap<>();
+		readOverrides.put("collection", collection.getCollectionName());
+
+		return MongoSpark.load(StreamProcessor.getSparkContext(), ReadConfig.create(StreamProcessor.getSparkContext()).withOptions(readOverrides));
 	}
 
 	/**
 	 * @param collection
 	 * @return
 	 */
-	public static JavaSparkContext getSparkContext(Collections collection) {
-//		if (jsc != null)
-//			return jsc;
+	// public static JavaSparkContext getSparkContext(Collections collection) {
+	// if (jsc != null)
+	// return jsc;
 
-//		String connectionString = "mongodb://127.0.0.1/" + DB_NAME + "." + collection.getCollectionName();
-//		SparkConf sc = new SparkConf()
-//				.setMaster("local")
-//				.setAppName("MongoSparkConnector")
-//				.set("spark.mongodb.input.uri", connectionString)
-//				.set("spark.mongodb.output.uri", connectionString);
-//
-//		jsc = new JavaSparkContext(sc);
+	// String connectionString = "mongodb://127.0.0.1/" + DB_NAME + "." + collection.getCollectionName();
+	// SparkConf sc = new SparkConf()
+	// .setMaster("local")
+	// .setAppName("MongoSparkConnector")
+	// .set("spark.mongodb.input.uri", connectionString)
+	// .set("spark.mongodb.output.uri", connectionString);
+	//
+	// jsc = new JavaSparkContext(sc);
 
-//		StreamProcessor.getSparkConfig()
-//				.set("spark.mongodb.input.uri", connectionString)
-//				.set("spark.mongodb.output.uri", connectionString);
-		jsc = StreamProcessor.getSparkCtx();
-		return jsc;
-	}
+	// StreamProcessor.getSparkConfig()
+	// .set("spark.mongodb.input.uri", connectionString)
+	// .set("spark.mongodb.output.uri", connectionString);
+	//
+	// return jsc;
+	// }
 
 	/**
 	 * @param wordsWithTopicRelatedValues
