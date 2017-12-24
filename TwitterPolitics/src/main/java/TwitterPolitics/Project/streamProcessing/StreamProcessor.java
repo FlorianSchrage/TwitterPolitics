@@ -79,7 +79,7 @@ public class StreamProcessor<K> {
 	public static void secondDraft()
 	{
 		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
-		String connectionString = "mongodb://127.0.0.1/" + MongoDBConnector.DB_NAME + "." + "tweets";				
+		String connectionString = "mongodb://127.0.0.1/" + MongoDBConnector.DB_NAME + "." + "tweets";
         sparkConfig = new SparkConf()
         		.setAppName("TwitterPolitics")
         		.setMaster("local[*]")
@@ -343,8 +343,16 @@ public class StreamProcessor<K> {
 									System.out.println("Element: " + iterator2.next());
 									
 								}
-        						JSONArray value = new JSONArray(document.get(MongoDBConnector.RECORD));
-        						wordTopics.put(key, value);
+        						
+        						System.out.println("Print all Data for RESULTS: ");
+        						MongoDBConnector.printAllData(MongoDBConnector.Collections.RESULTS);
+        						System.out.println("Print all Data for TWEETS: ");
+        						MongoDBConnector.printAllData(MongoDBConnector.Collections.TWEETS);
+        						System.out.println("Print all Data for TOPICS: ");
+        						MongoDBConnector.printAllData(MongoDBConnector.Collections.TOPICS);
+        						
+//        						JSONArray value = new JSONArray(document.get(MongoDBConnector.RECORD));
+//        						wordTopics.put(key, value);
         					} catch (JSONException e) {
         						e.printStackTrace();
         					}

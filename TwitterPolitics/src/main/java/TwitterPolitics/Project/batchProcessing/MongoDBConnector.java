@@ -88,6 +88,14 @@ public class MongoDBConnector {
 	}
 
 	public static JavaRDD<Document> getRDDs(Collections collection) {
+//		String connectionString = "mongodb://127.0.0.1/" + MongoDBConnector.DB_NAME + "." + collection.getCollectionName();
+//		StreamProcessor.getSparkConfig().
+//		SparkConf sc = new SparkConf()
+//				.setMaster("local[*]")
+//				.setAppName("MongoSparkConnector")
+//				.set("spark.mongodb.input.uri", connectionString)
+//				.set("spark.mongodb.output.uri", connectionString);
+//		return MongoSpark.load(new JavaSparkContext(sc));
 		return MongoSpark.load(getSparkContext(collection));
 	}
 
