@@ -25,6 +25,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import TwitterPolitics.Project.streamProcessing.StreamProcessor;
+
 /**
  * @author Steffen Terheiden
  *
@@ -36,8 +38,8 @@ public class LDATopicCreation {
 		int NUMBER_OF_WORDS_TO_DESCRIBE_A_TOPIC = 10;
 
 		System.out.println("LDATopicCreation running...");
-		MongoDBConnector.getSparkContext(MongoDBConnector.Collections.TWEETS).setLogLevel("ERROR");
-		SQLContext sqlContext = new SQLContext(MongoDBConnector.getSparkContext(MongoDBConnector.Collections.TWEETS));
+		StreamProcessor.getSparkContext().setLogLevel("ERROR");
+		SQLContext sqlContext = new SQLContext(StreamProcessor.getSparkContext());
 		JavaRDD<Row> jrdd = MongoDBConnector.getRDDs(MongoDBConnector.Collections.TWEETS).map(d -> {
 			// System.out.println("Processing: " + d.toJson());
 			try {
