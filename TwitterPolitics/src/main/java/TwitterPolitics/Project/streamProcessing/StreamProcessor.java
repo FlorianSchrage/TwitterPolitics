@@ -345,29 +345,6 @@ public class StreamProcessor<K> {
 							int index = Integer.parseInt(document.get("_id").toString());
 							String name = document.getString(MongoDBConnector.TOPIC);
 
-        					try {
-        						String key = document.get("_id").toString();
-        						ArrayList<String> abc = (ArrayList<String>) document.get(MongoDBConnector.RECORD);
-        						
-        						System.out.println("_id: " + key);
-        						for (Iterator iterator2 = abc.iterator(); iterator2.hasNext();) {
-									System.out.println("Element: " + iterator2.next());
-									
-								}
-        						
-        						System.out.println("Print all Data for RESULTS: ");
-        						MongoDBConnector.printAllData(MongoDBConnector.Collections.RESULTS);
-        						System.out.println("Print all Data for TWEETS: ");
-        						MongoDBConnector.printAllData(MongoDBConnector.Collections.TWEETS);
-        						System.out.println("Print all Data for TOPICS: ");
-        						MongoDBConnector.printAllData(MongoDBConnector.Collections.TOPICS);
-        						
-//        						JSONArray value = new JSONArray(document.get(MongoDBConnector.RECORD));
-//        						wordTopics.put(key, value);
-        					} catch (JSONException e) {
-        						e.printStackTrace();
-        					}
-        				}
 							if (topicNames[index] != null)
 								throw new IllegalStateException("Duplicate Topics in Topic List!");
 
