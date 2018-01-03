@@ -3,6 +3,9 @@ package TwitterPolitics.Project.streamIngestion;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -22,7 +25,8 @@ public class KafkaTwitterIngestion
 	private static final String TWITTER_CONFIG_FILE_PATH = "src/main/resources/twitter_configuration.txt";
 	private static final int QUEUE_CAPACITY = 1000;
 	
-	private static final int DEFAULT_RUNTIME_MINS = 10;
+	private static final int DEFAULT_RUNTIME_MINS = 3;
+	private static List<Integer> all = new ArrayList<>();
 	
 	private LinkedBlockingQueue<Status> queue;
 	
@@ -142,6 +146,8 @@ public class KafkaTwitterIngestion
 //	            for(HashtagEntity hashtag : status.getHashtagEntities()) {
 //	               System.out.println("Hashtag: " + hashtag.getText());
 //	            }
+//	        	System.out.println("User has " + status.getUser().getFollowersCount() + " Followers");
+	        	all.add(status.getUser().getFollowersCount());
 	            Record record = new Record(status);
 	            String recordJson = record.toString();
 //	            if(record.getLocation() != null)
@@ -159,6 +165,39 @@ public class KafkaTwitterIngestion
 	      twitterStream.shutdown();
 	      System.out.println("Finished after " + i + " null statuses");
 	      System.out.println(j + " Tweets overall processed");
+	      
+//	      Collections.sort(all);
+//	      int small = all.size() / 3;
+//	      int medium = all.size() * 2 / 3;
+//	      int k = 1;
+//	      ArrayList<Integer> smallList = new ArrayList<>();
+//	      ArrayList<Integer> mediumList = new ArrayList<>();
+//	      ArrayList<Integer> bigList = new ArrayList<>();
+//	      
+//	      for (Iterator<Integer> iterator = all.iterator(); iterator.hasNext();) {
+//			Integer value = iterator.next();
+//			if(k >= medium) {
+//				bigList.add(value);
+//			}
+//			else if(k >= small) {
+//				mediumList.add(value);
+//			}
+//			else {
+//				smallList.add(value);
+//			}
+//			
+//			k++;
+//		}
+//	      
+//	    System.out.println("Small avg: " + smallList.stream().mapToInt(val -> val).average().getAsDouble());
+//	    System.out.println("Small max: " + smallList.get(smallList.size() - 1));
+//	    System.out.println("Small min: " + smallList.get(0));
+//	    System.out.println("Medium avg: " + mediumList.stream().mapToInt(val -> val).average().getAsDouble());
+//	    System.out.println("Medium max: " + mediumList.get(mediumList.size() - 1));
+//	    System.out.println("Medium min: " + mediumList.get(0));
+//	    System.out.println("Big avg: " + bigList.stream().mapToInt(val -> val).average().getAsDouble());
+//	    System.out.println("Big max: " + bigList.get(bigList.size() - 1));
+//	    System.out.println("Big min: " + bigList.get(0));
 	   }
 	
 	private String[] getTwitterConfigs() throws FileNotFoundException, IOException {

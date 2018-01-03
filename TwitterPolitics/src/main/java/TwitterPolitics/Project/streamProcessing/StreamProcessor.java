@@ -2,6 +2,7 @@ package TwitterPolitics.Project.streamProcessing;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,6 +12,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -41,8 +43,12 @@ import com.google.common.io.Files;
 
 import TwitterPolitics.Project.batchProcessing.MongoDBConnector;
 import TwitterPolitics.Project.streamIngestion.Record;
+import TwitterPolitics.Project.streamIngestion.Record.Place;
+import TwitterPolitics.Project.view.MonetDBConnector;
+import TwitterPolitics.Project.view.MonetDBConnector.TopicRecord;
 import kafka.serializer.StringDecoder;
 import scala.Tuple2;
+import scala.Tuple3;
 
 public class StreamProcessor<K> {
 
@@ -67,6 +73,15 @@ public class StreamProcessor<K> {
 	private static long lastMongoQueryTime;
 	private static Map<String, JSONArray> wordTopics;
 	private static String[] topicNames;
+	
+	private static final int MONET_UPDATE_INTERVAL_MIN = 2;
+	private static long lastMonetUpdateTime;
+//	private static List<TopicRecord> monetData;
+	private static HashMap<Tuple3<String, String, String>,Integer> monetData;
+	
+	private static long duration;
+	private static HashMap<String, Integer> counterLocation;
+	private static HashMap<String, Integer> counterPlace;
 
 	private static int empty;
 	private static int noInitial;
@@ -345,8 +360,12 @@ public class StreamProcessor<K> {
 							int index = Integer.parseInt(document.get("_id").toString());
 							String name = document.getString(MongoDBConnector.TOPIC);
 
-							if (topicNames[index] != null)
-								throw new IllegalStateException("Duplicate Topics in Topic List!");
+							if (topicNames[index] != null && !topicNames[index].equals(name)) {
+								String info = " index=" + index +" | Topic already existing: " + topicNames[index] + " | New Topic: " + name;
+								
+								throw new IllegalStateException("Duplicate Topics in Topic List!" + info);
+							}
+								
 
 							topicNames[index] = name;
 						}
@@ -393,7 +412,112 @@ public class StreamProcessor<K> {
 
 		recordWithTopics.foreachRDD(f -> {
 			f.foreach(g -> {
-				System.out.println(g._1 + ": " + g._2.getText() + "\n \t Topic: " + g._2.getTopic());
+				if(lastMonetUpdateTime == 0) {
+//					System.out.println("Clean MonetData");
+					monetData = new HashMap<>();
+					lastMonetUpdateTime = System.currentTimeMillis();
+				}
+				else if((lastMonetUpdateTime + (MONET_UPDATE_INTERVAL_MIN * 60000)) < System.currentTimeMillis()) {
+					
+					List<TopicRecord> insertData = new ArrayList<>();
+					long timestamp = System.currentTimeMillis();
+					
+					Iterator<Entry<Tuple3<String, String, String>, Integer>> entries = monetData.entrySet().iterator();
+					while (entries.hasNext()) {
+					    Entry<Tuple3<String, String, String>, Integer> entry = entries.next();
+					    insertData.add(new TopicRecord(timestamp, entry.getKey()._1(), entry.getKey()._2(), entry.getKey()._3(), entry.getValue()));
+//					    System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
+					}
+					
+//					PrintWriter writer = new PrintWriter("EXAMPLE_RESULT_" + timestamp, "UTF-8");
+//					
+//					for (Iterator<TopicRecord> iterator = insertData.iterator(); iterator.hasNext();) {
+//						TopicRecord tr = iterator.next();
+//						writer.println("(" + tr.getTimeStamp() + ", " + tr.getRegion() + ", " + tr.getTopic() + ", " + tr.getCount() + ");");
+//					}
+//					writer.close();
+					
+					
+					
+					MonetDBConnector.insertTopics(insertData);
+					
+//					System.out.println("Clean MonetData");
+					monetData = new HashMap<>();
+					lastMonetUpdateTime = System.currentTimeMillis();
+				}
+				
+				Place place = g._2.getPlace();
+				String country = null;
+				if(place != null && place.getCountry() != null)
+					country = place.getCountry();
+				
+				Tuple3<String, String, String> currentData = new Tuple3<>(country, g._2.getFollowerGroup(), g._2.getTopic());
+				Integer count = 1;
+				if(monetData.containsKey(currentData))
+					count = monetData.get(currentData) + 1;
+				monetData.put(currentData, count);
+//				System.out.println("PUT <(" + currentData._1 + "," + currentData._2 + ")," + count + ">");
+				
+				
+				
+				
+//				if(duration == 0) {
+//					System.out.println("---INITIALIZE---");
+//					counterLocation = new HashMap<>();
+//					counterPlace = new HashMap<>();
+//					duration = System.currentTimeMillis() + (long) 120000;
+//				}
+//				else if(System.currentTimeMillis() > duration) {
+//					System.out.println("---FINISH---");
+//					System.out.println("Locations:");
+//					System.out.println("Size: " + counterLocation.size());
+//					for (Iterator<String> iterator = counterLocation.keySet().iterator(); iterator.hasNext();) {
+//						String location = iterator.next();
+//						System.out.println("<" + location + ", " + counterLocation.get(location) + ">");
+//					}
+//					System.out.println("Places:");
+//					for (Iterator<String> iterator = counterPlace.keySet().iterator(); iterator.hasNext();) {
+//						String place = iterator.next();
+//						System.out.println("<" + place + ", " + counterPlace.get(place) + ">");
+//					}
+//				}
+//				
+//				
+//				String location = null;
+//				if(g._2.getLocation() != null)
+//					location = g._2.getLocation().toString();
+//				else
+//					location = "null";
+//				
+//				if(counterLocation.containsKey(location)) {
+//					Integer current = counterLocation.get(location);
+//					current++;
+//					counterLocation.put(location, current);
+////					System.out.println("Put " + location + ", " + current);
+//				}
+//				else {
+//					counterLocation.put(location, 1);
+//				}
+//				
+//				String place = null;
+//				if(g._2.getPlace() != null)
+//					place = g._2.getPlace().toString();
+//				else
+//					place = "null";
+//				
+//				if(counterPlace.containsKey(place)) {
+//					Integer current = counterPlace.get(place);
+//					current++;
+//					counterPlace.put(place, current);
+//				}
+//				else {
+//					counterPlace.put(place, 1);
+//				}
+				
+				
+				
+//				System.out.println();
+//				System.out.println(g._1 + ": " + g._2.getText() + "\n \t Topic: " + g._2.getTopic());
 			});
 		});
 

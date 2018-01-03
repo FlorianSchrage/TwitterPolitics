@@ -21,19 +21,21 @@ public class MonetDBConnector {
 
 	public static void main(String[] args) {
 		List<TopicRecord> topics = new ArrayList<>();
-		topics.add(new TopicRecord(1243251L, "Germany", "Trump, MAGA, METOO", 12355));
+		topics.add(new TopicRecord(1243251L, "Germany", "Medium", "Trump, MAGA, METOO", 12355));
+		topics.add(new TopicRecord(1243251L, "Germany", "Medium", "Trump, MAGA, sadfMETOO", 12355));
 		insertTopics(topics);
 	}
 
 	public static void insertTopics(List<TopicRecord> topics) {
 		try {
-			PreparedStatement statement = getConnection().prepareStatement("INSERT INTO " + TABLE_NAME + " VALUES(?, ?, ?, ?)");
+			PreparedStatement statement = getConnection().prepareStatement("INSERT INTO " + TABLE_NAME + " VALUES(?, ?, ?, ?, ?)");
 
 			for (TopicRecord record : topics) {
 				statement.setTimestamp(1, record.getTimeStamp()); // some random time
 				statement.setString(2, record.getRegion());
-				statement.setString(3, record.getTopic());
-				statement.setInt(4, record.getCount());
+				statement.setString(3, record.getFollowerGroup());
+				statement.setString(4, record.getTopic());
+				statement.setInt(5, record.getCount());
 				statement.addBatch();
 
 			}
@@ -41,6 +43,8 @@ public class MonetDBConnector {
 
 		} catch (SQLException e) {
 			e.printStackTrace();
+			Exception e2 = e.getNextException();
+			e2.printStackTrace();
 		}
 	}
 
@@ -60,10 +64,11 @@ public class MonetDBConnector {
 		 * @param topic
 		 * @param count
 		 */
-		public TopicRecord(long timeStamp, String region, String topic, int count) {
+		public TopicRecord(long timeStamp, String region, String followerGroup, String topic, int count) {
 			super();
 			this.timeStamp = timeStamp;
 			this.region = region;
+			this.followerGroup = followerGroup;
 			this.topic = topic;
 			this.count = count;
 		}
@@ -127,9 +132,21 @@ public class MonetDBConnector {
 		public void setCount(int count) {
 			this.count = count;
 		}
+		
+		
+
+		public String getFollowerGroup() {
+			return followerGroup;
+		}
+
+		public void setFollowerGroup(String followerGroup) {
+			this.followerGroup = followerGroup;
+		}
+
+
 
 		long timeStamp;
-		String region, topic;
+		String region, followerGroup, topic;
 		int count;
 
 	}

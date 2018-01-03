@@ -20,6 +20,12 @@ import twitter4j.Status;
  *
  */
 public class Record implements scala.Serializable {
+	private static final String FOLLOWER_SMALL = "Small";
+	private static final String FOLLOWER_MEDIUM = "Medium";
+	private static final String FOLLOWER_LARGE = "Large";
+	private static final int BORDER_SMALL_MEDIUM = 300;
+	private static final int BORDER_MEDIUM_LARGE = 1800;
+	
 	String text;
 	List<String> hashtagList = new ArrayList<>();
 	List<String> cleanedWords;
@@ -30,6 +36,7 @@ public class Record implements scala.Serializable {
 	Location location;
 	// TODO: change to more general holder, since it is twitter specific
 	Place place;
+	String followerGroup;
 
 	public Record(Status tweet) {
 		text = tweet.getText();
@@ -44,6 +51,13 @@ public class Record implements scala.Serializable {
 					p.getBoundingBoxType(), Location.getLocations(p.getBoundingBoxCoordinates()), p.getGeometryType(),
 					Location.getLocations(p.getGeometryCoordinates()));
 		}
+		if(tweet.getUser().getFollowersCount() <= BORDER_SMALL_MEDIUM)
+			followerGroup = FOLLOWER_SMALL;
+		else if(tweet.getUser().getFollowersCount() <= BORDER_MEDIUM_LARGE)
+			followerGroup = FOLLOWER_MEDIUM;
+		else
+			followerGroup = FOLLOWER_LARGE;
+		
 	}
 
 	public static Record getByJsonString(String jsonRecord) {
@@ -419,6 +433,14 @@ public class Record implements scala.Serializable {
 
 	public void setTopic(String topic) {
 		this.topic = topic;
+	}
+
+	public String getFollowerGroup() {
+		return followerGroup;
+	}
+
+	public void setFollowerGroup(String followerGroup) {
+		this.followerGroup = followerGroup;
 	}
 
 }
