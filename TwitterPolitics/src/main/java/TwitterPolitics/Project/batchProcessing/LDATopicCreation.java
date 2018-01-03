@@ -125,6 +125,7 @@ public class LDATopicCreation {
 			}
 		});
 
+		MongoDBConnector.dropTweets();
 		MongoDBConnector.saveToMongo(wordsWithTopicRelatedValues, MongoDBConnector.Collections.RESULTS);
 		MongoDBConnector.saveTopicsToMongo(topicsWithDescription);
 

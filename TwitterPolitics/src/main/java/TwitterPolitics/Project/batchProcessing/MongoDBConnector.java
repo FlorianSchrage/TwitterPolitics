@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
+import java.util.Random;
 
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
@@ -18,6 +20,7 @@ import com.mongodb.Block;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
 import com.mongodb.spark.MongoSpark;
 import com.mongodb.spark.config.ReadConfig;
 
@@ -29,6 +32,8 @@ public class MongoDBConnector {
 	public static final String RECORD = "record";
 	public static final String TOPIC = "topic";
 	public static final String DB_NAME = "twitterTopics";
+	public static final String DELETION_COUNTER = "deletionCount";
+	public static final int SHARE_OF_DELETION = 3;
 
 	public enum Collections {
 		TWEETS("tweets"), RESULTS("results"), TOPICS("topics");
@@ -61,26 +66,27 @@ public class MongoDBConnector {
 	public static void saveToMongo(JavaPairDStream<String, Record> records, Collections collection) {
 		// TODO: remove remove ;) and improve save method
 		removeCollection(collection);
-		records.toJavaDStream().map(f -> new Document(RECORD, f._2.getCleanedWords())).foreachRDD(new Function<JavaRDD<Document>, Void>() {
-			private static final long serialVersionUID = 1L;
+		records.toJavaDStream().map(f -> new Document(RECORD, f._2.getCleanedWords()).append(DELETION_COUNTER, System.currentTimeMillis()))
+				.foreachRDD(new Function<JavaRDD<Document>, Void>() {
+					private static final long serialVersionUID = 1L;
 
-			@Override
-			public Void call(JavaRDD<Document> data) throws Exception {
-				System.out.println("Before insert: " + getCollection(collection).count() + " documents found. " + data.count() + " data elements");
-				if (data != null && data.count() > 0) {
-					getCollection(collection).insertMany(data.collect());
-					System.out.println("Inserted Data Done");
-				}
-				System.out.println("After insert: " + getCollection(collection).count() + " documents found");
-				return null;
-			}
+					@Override
+					public Void call(JavaRDD<Document> data) throws Exception {
+						System.out.println("Before insert: " + getCollection(collection).count() + " documents found. " + data.count() + " data elements");
+						if (data != null && data.count() > 0) {
+							getCollection(collection).insertMany(data.collect());
+							System.out.println("Inserted Data Done");
+						}
+						System.out.println("After insert: " + getCollection(collection).count() + " documents found");
+						return null;
+					}
 
-		});
+				});
 
 	}
 
 	public static void printAllData(Collections collection) {
-		System.out.println("Print all data in " + collection.getCollectionName());
+		System.out.println("Print all data in " + collection.getCollectionName() + " Documents: " + getCollection(collection).count());
 		getCollection(collection).find().forEach((Block<Document>) d -> {
 			System.out.println(d.toJson());
 		});
@@ -122,7 +128,7 @@ public class MongoDBConnector {
 	 * @param results
 	 */
 	public static void saveToMongo(HashMap<String, JSONArray> data, Collections collection) {
-		removeCollection(collection);
+
 		System.out.println("Before insert: " + getCollection(collection).count() + " documents found");
 		List<Document> documents = new ArrayList<>();
 		data.forEach((s, j) -> documents.add(new Document(RECORD, j.toString()).append("_id", s)));
@@ -131,7 +137,7 @@ public class MongoDBConnector {
 	}
 
 	public static void saveTopicsToMongo(HashMap<Integer, List<String>> data) {
-		removeCollection(Collections.TOPICS);
+
 		System.out.println("Before insert: " + getCollection(Collections.TOPICS).count() + " documents found");
 
 		List<Document> documents = new ArrayList<>();
@@ -141,24 +147,23 @@ public class MongoDBConnector {
 			String description = words.toString().substring(0, words.length() - 2);
 			documents.add(new Document(TOPIC, description).append("_id", i));
 		});
+		removeCollection(Collections.TOPICS);
 		getCollection(Collections.TOPICS).insertMany(documents);
 		System.out.println("After insert: " + getCollection(Collections.TOPICS).count() + " documents found");
 	}
 
-	// TODO: currently not working ...
-	// public static List<Record> getRecords(Collections collection) {
-	// System.out.println("Get records from " + collection.getCollectionName());
-	// List<Record> records = new ArrayList<>();
-	// getCollection(collection).find().forEach((Block<Document>) d -> {
-	// Record currentRecord = Record.getByJsonString(d.toJson());
-	//
-	// if (currentRecord != null) {
-	// records.add(currentRecord);
-	// } else {
-	// System.out.println("ERROR: Was not able to create Record from: " + d.toJson());
-	// }
-	//
-	// });
-	// return records;
-	// }
+	/**
+	 * 
+	 */
+	public static void dropTweets() {
+		// printAllData(Collections.TWEETS);
+
+		Random generator = new Random();
+		OptionalInt divisor = generator.ints(SHARE_OF_DELETION / 2 + 1, SHARE_OF_DELETION + SHARE_OF_DELETION / 2 + 1).findFirst();
+		int remainder = generator.nextInt(divisor.getAsInt());
+		// System.out.println("Random remainder: " + remainder + divisor.getAsInt());
+		getCollection(Collections.TWEETS).deleteMany(Filters.mod(DELETION_COUNTER, divisor.getAsInt(), remainder));
+		// printAllData(Collections.TWEETS);
+	}
+
 }
