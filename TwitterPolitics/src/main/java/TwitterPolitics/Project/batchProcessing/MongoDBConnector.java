@@ -58,7 +58,7 @@ public class MongoDBConnector {
 		return getMongoDBClient().getDatabase(DB_NAME).getCollection(collection.getCollectionName());
 	}
 
-	private static void removeCollection(Collections collection) {
+	public static void removeCollection(Collections collection) {
 		getCollection(collection).drop();
 	}
 
@@ -129,7 +129,6 @@ public class MongoDBConnector {
 	 */
 	public static void saveToMongo(HashMap<String, JSONArray> data, Collections collection) {
 
-		System.out.println("Before insert: " + getCollection(collection).count() + " documents found");
 		List<Document> documents = new ArrayList<>();
 		data.forEach((s, j) -> documents.add(new Document(RECORD, j.toString()).append("_id", s)));
 		getCollection(collection).insertMany(documents);
