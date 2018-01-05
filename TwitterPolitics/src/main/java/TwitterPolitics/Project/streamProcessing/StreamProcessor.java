@@ -83,9 +83,10 @@ public class StreamProcessor<K> {
 	private static HashMap<String, Integer> counterLocation;
 	private static HashMap<String, Integer> counterPlace;
 
-	private static int empty;
-	private static int noInitial;
-	private static int initial;
+	private static long empty;
+	private static long noInitial;
+	private static long initial;
+	private static long initialOrAdditional;
 
 	public static void analyseStreamRecords() {
 		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
@@ -116,6 +117,8 @@ public class StreamProcessor<K> {
 
 		empty = 0;
 		noInitial = 0;
+		initial = 0;
+		initialOrAdditional = 0;
 
 		JavaPairDStream<String, Record> records = recordStrings.mapToPair(f -> {
 			Record record = Record.getByJsonString(f._2);
@@ -133,6 +136,14 @@ public class StreamProcessor<K> {
 				// Arrays.toString(record.getHashtagList().toArray()));
 				return false;
 			}
+			
+			//This is just needed for counting
+			for (Iterator<String> iterator = record.getHashtagList().iterator(); iterator.hasNext();) {
+				String hashtag = iterator.next();
+				if (additionalHashtagsContains(hashtag) || initialHashtagsContains(hashtag)) {
+					initialOrAdditional++;
+				}
+			}
 
 			for (Iterator<String> iterator = record.getHashtagList().iterator(); iterator.hasNext();) {
 				if (initialHashtagsContains(iterator.next())) {
@@ -141,6 +152,7 @@ public class StreamProcessor<K> {
 					return true;
 				}
 			}
+			
 			noInitial++;
 			// System.out.println("Tweet discarded - no initial hashtags (" + noInitial + "): " + record.getText() + "///" +
 			// Arrays.toString(record.getHashtagList().toArray()));
@@ -322,6 +334,7 @@ public class StreamProcessor<K> {
 					// Query every minute
 					if (wordTopics == null || lastMongoQueryTime == 0 || (lastMongoQueryTime + MONGO_QUERY_INTERVAL_MS) < System.currentTimeMillis()) {
 
+						lastMongoQueryTime = System.currentTimeMillis();
 						JavaRDD<Document> wordTopicsRDD = MongoDBConnector.getRDDs(MongoDBConnector.Collections.RESULTS);
 						List<Document> wordTopicsList = wordTopicsRDD.collect();
 						wordTopics = new HashMap<>();
@@ -413,7 +426,7 @@ public class StreamProcessor<K> {
 					lastMonetUpdateTime = System.currentTimeMillis();
 				}
 				else if((lastMonetUpdateTime + (MONET_UPDATE_INTERVAL_MIN * 60000)) < System.currentTimeMillis()) {
-					
+					lastMonetUpdateTime = System.currentTimeMillis();
 					List<TopicRecord> insertData = new ArrayList<>();
 					long timestamp = System.currentTimeMillis();
 					
@@ -439,6 +452,13 @@ public class StreamProcessor<K> {
 //					System.out.println("Clean MonetData");
 					monetData = new HashMap<>();
 					lastMonetUpdateTime = System.currentTimeMillis();
+					
+					//Ausgabe Messwerte
+					System.out.println("---Current Status---");
+					System.out.println("Discarded tweets without any hashtag: " + empty);
+					System.out.println("Previously or finally discarded tweets with no initial hashtag: " + noInitial);
+					System.out.println("Tweets with initial hashtags: " + initial);
+					System.out.println("Tweets with initial or additional hashtags: " + initialOrAdditional);
 				}
 				
 				Place place = g._2.getPlace();
@@ -452,7 +472,6 @@ public class StreamProcessor<K> {
 					count = monetData.get(currentData) + 1;
 				monetData.put(currentData, count);
 //				System.out.println("PUT <(" + currentData._1 + "," + currentData._2 + ")," + count + ">");
-				
 				
 				
 				
