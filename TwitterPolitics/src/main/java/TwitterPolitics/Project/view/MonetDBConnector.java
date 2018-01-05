@@ -18,6 +18,7 @@ import java.util.List;
 public class MonetDBConnector {
 
 	private final static String TABLE_NAME = "topics";
+	private static Connection connection;
 
 	public static void main(String[] args) {
 		List<TopicRecord> topics = new ArrayList<>();
@@ -49,6 +50,13 @@ public class MonetDBConnector {
 	}
 
 	public static Connection getConnection() {
+		try {
+			if(connection != null && !connection.isClosed())
+				return connection;
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
+		
 		try {
 			return DriverManager.getConnection("jdbc:monetdb://localhost:50000/demo?so_timeout=10000", "monetdb", "monetdb");
 		} catch (SQLException e) {

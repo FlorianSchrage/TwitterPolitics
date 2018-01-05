@@ -87,7 +87,7 @@ public class StreamProcessor<K> {
 	private static int noInitial;
 	private static int initial;
 
-	public static void secondDraft() {
+	public static void analyseStreamRecords() {
 		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
 
 		sparkCtx = getSparkContext();
@@ -176,6 +176,7 @@ public class StreamProcessor<K> {
 
 			return iHashAndAssociated;
 		});
+//		hashtagTuples.print();
 
 		// <Initial Hashtag, 1>
 		JavaPairDStream<String, Integer> initialHashtagTuples = hashtagTuples.mapToPair(tuple -> new Tuple2<>(tuple._1._1, tuple._2));
@@ -194,14 +195,7 @@ public class StreamProcessor<K> {
 				(i1, i2) -> i1 - i2,
 				new Duration(WINDOW_DURATION_SECS * 1000),
 				new Duration(SLIDE_DURATION_SECS * 1000));
-
-		// JavaPairDStream<Tuple2<String, String>, Integer> coOccurringHashtagCounts = hashtagTuples.
-		// reduceByKeyAndWindow(
-		// (i1,i2) -> i1+i2,
-		// (i1,i2) -> i1-i2,
-		// new Duration(WINDOW_DURATION_SECS * 1000),
-		// new Duration(SLIDE_DURATION_SECS * 1000));
-
+		
 		JavaPairDStream<Integer, Integer> swappedInitialHashtagCounts = initialHashtagCounts.mapToPair(f -> new Tuple2<>(1, f._2));
 		JavaPairDStream<Integer, Integer> initialHashtagSingleCount = swappedInitialHashtagCounts.reduceByKey((i1, i2) -> i1 + i2);
 
@@ -223,16 +217,18 @@ public class StreamProcessor<K> {
 		JavaPairDStream<String, Double> filteredAdditionalHashtagOccurenceRatios = additionalHashtagOccurenceRatios
 				.filter(f -> f._2 >= OCCURENCE_RATIO_THRESHOLD);
 
-		// JavaPairDStream<Double, String> swappedCounts = additionalHashtagOccurenceRatios.mapToPair(count -> count.swap());
-		// JavaPairDStream<Double, String> sortedCounts = swappedCounts.transformToPair(count -> count.sortByKey(false));
-		//
-		// sortedCounts.foreachRDD(rdd -> {
-		// String out = "\nTop 10 additional hashtag ratios:\n";
-		// for (Tuple2<Double, String> t : rdd.take(10)) {
-		// out = out + t.toString() + "\n";
-		// }
-		// System.out.println(out);
-		// });
+		
+//		 JavaPairDStream<Double, String> swappedCounts = additionalHashtagOccurenceRatios.mapToPair(count -> count.swap());
+//		 JavaPairDStream<Double, String> sortedCounts = swappedCounts.transformToPair(count -> count.sortByKey(false));
+//		
+//		 sortedCounts.foreachRDD(rdd -> {
+//		 String out = "\nTop 10 additional hashtag ratios:\n";
+//		 for (Tuple2<Double, String> t : rdd.take(10)) {
+//		 out = out + t.toString() + "\n";
+//		 }
+//		 System.out.println(out);
+//		 });
+		 
 
 		filteredAdditionalHashtagOccurenceRatios.foreachRDD(rdd -> {
 			additionalHashtags = new ArrayList<>();
@@ -240,7 +236,6 @@ public class StreamProcessor<K> {
 		});
 
 		JavaPairDStream<String, Record> recordsWithValidAdditionalHashtags = records.filter(recordTuple -> {
-			// Record record = Record.getByJsonString(recordString._2);
 			Record record = recordTuple._2;
 
 			for (Iterator<String> iterator = record.getHashtagList().iterator(); iterator.hasNext();) {
@@ -595,7 +590,7 @@ public class StreamProcessor<K> {
 	public static void main(String[] args) {
 		System.out.println("Consumer running...");
 
-		StreamProcessor.secondDraft();
+		StreamProcessor.analyseStreamRecords();
 	}
 
 	public static JavaSparkContext getSparkContext() {
