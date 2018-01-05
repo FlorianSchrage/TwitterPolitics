@@ -43,8 +43,6 @@ public class MonetDBConnector {
 
 		} catch (SQLException e) {
 			e.printStackTrace();
-			Exception e2 = e.getNextException();
-			e2.printStackTrace();
 		}
 	}
 
@@ -132,8 +130,6 @@ public class MonetDBConnector {
 		public void setCount(int count) {
 			this.count = count;
 		}
-		
-		
 
 		public String getFollowerGroup() {
 			return followerGroup;
@@ -142,8 +138,6 @@ public class MonetDBConnector {
 		public void setFollowerGroup(String followerGroup) {
 			this.followerGroup = followerGroup;
 		}
-
-
 
 		long timeStamp;
 		String region, followerGroup, topic;
