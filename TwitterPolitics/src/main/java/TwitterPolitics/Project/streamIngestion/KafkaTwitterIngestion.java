@@ -27,6 +27,7 @@ public class KafkaTwitterIngestion {
 	private static final int QUEUE_CAPACITY = 1000;
 
 	private static final int DEFAULT_RUNTIME_MINS = 60;
+
 	private static List<Integer> all = new ArrayList<>();
 
 	private LinkedBlockingQueue<Status> queue;
