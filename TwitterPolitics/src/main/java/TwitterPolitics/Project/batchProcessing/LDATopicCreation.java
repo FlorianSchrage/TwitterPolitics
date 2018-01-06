@@ -34,12 +34,13 @@ import TwitterPolitics.Project.streamProcessing.StreamProcessor;
 public class LDATopicCreation {
 
 	public static void main(String[] args) {
-		int NUMBER_OF_TOPICS = 15;
+		int NUMBER_OF_TOPICS = 10;
 		int NUMBER_OF_WORDS_TO_DESCRIBE_A_TOPIC = 10;
 
-		System.out.println("LDATopicCreation running...");
+		System.out.println("LDATopicCreation running... " + System.currentTimeMillis() / 1000);
 		StreamProcessor.getSparkContext().setLogLevel("ERROR");
 		SQLContext sqlContext = new SQLContext(StreamProcessor.getSparkContext());
+		System.out.println("Load data... " + System.currentTimeMillis() / 1000);
 		JavaRDD<Row> jrdd = MongoDBConnector.getRDDs(MongoDBConnector.Collections.TWEETS).map(d -> {
 			// System.out.println("Processing: " + d.toJson());
 			try {
@@ -51,7 +52,7 @@ public class LDATopicCreation {
 			}
 
 		});
-
+		System.out.println("Load data finished... " + System.currentTimeMillis() / 1000);
 		StructType schema = new StructType(new StructField[] {
 				new StructField("label", DataTypes.IntegerType, false, Metadata.empty()),
 				new StructField("sentence", DataTypes.StringType, false, Metadata.empty())
@@ -66,7 +67,7 @@ public class LDATopicCreation {
 		CountVectorizerModel cvModel = new CountVectorizer()
 				.setInputCol("words")
 				.setOutputCol("features")
-				.setMinDF(2)
+				.setMinDF(4)
 				.fit(wordsDataFrame);
 		String[] vocabulary = cvModel.vocabulary();
 		// Arrays.stream(vocabulary).forEach(s -> System.out.println("Vocabulary: " + s));
@@ -77,15 +78,19 @@ public class LDATopicCreation {
 		// IDFModel idfModel = idf.fit(tfDataFrame);
 		// DataFrame idfDataFrame = idfModel.transform(tfDataFrame);
 
+		// Split data frame for validation/evaluation
+		// double[] weightsSplit = { 4, 1 };
+		// DataFrame[] frames = tfDataFrame.randomSplit(weightsSplit, 1L);
+
 		// Trains a LDA model
 		LDA lda = new LDA()
 				.setK(NUMBER_OF_TOPICS)
-				.setMaxIter(50);
+				.setMaxIter(100);
 		LDAModel model = lda.fit(tfDataFrame);
 
 		// performance evaluation
-		// System.out.println("logLikelihood: " + model.logLikelihood(featureDataFrame));
-		// System.out.println("logPerplexity: " + model.logPerplexity(featureDataFrame));
+		// System.out.println("logLikelihood: " + model.logLikelihood(frames[1]));
+		// System.out.println("logPerplexity: " + model.logPerplexity(frames[1]));
 
 		// extract topics and related weights for each word
 		// create description of topics
@@ -124,16 +129,17 @@ public class LDATopicCreation {
 
 			}
 		});
-
+		System.out.println("Finished processing. Dropping tweets ..." + System.currentTimeMillis() / 1000);
 		MongoDBConnector.dropTweets();
 		MongoDBConnector.removeCollection(MongoDBConnector.Collections.RESULTS);
+		System.out.println("Finished dropping. save features and topics ..." + System.currentTimeMillis() / 1000);
 		MongoDBConnector.saveToMongo(wordsWithTopicRelatedValues, MongoDBConnector.Collections.RESULTS);
 		MongoDBConnector.saveTopicsToMongo(topicsWithDescription);
 
 		// topics.show(false);
 		// model.transform(featureDataFrame).show(false);
 		MongoDBConnector.printAllData(MongoDBConnector.Collections.RESULTS);
-		System.out.println();
+		System.out.println("Finished saving all data" + System.currentTimeMillis() / 1000);
 		MongoDBConnector.printAllData(MongoDBConnector.Collections.TOPICS);
 	}
 

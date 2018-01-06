@@ -26,7 +26,7 @@ public class KafkaTwitterIngestion {
 	private static final String TWITTER_CONFIG_FILE_PATH = "src/main/resources/twitter_configuration.txt";
 	private static final int QUEUE_CAPACITY = 1000;
 
-	private static final int DEFAULT_RUNTIME_MINS = 60;
+	private static final int DEFAULT_RUNTIME_MINS = 3;
 
 	private static List<Integer> all = new ArrayList<>();
 
@@ -146,18 +146,20 @@ public class KafkaTwitterIngestion {
 
 		long t = System.currentTimeMillis();
 		long end = t + 60000 * runtime;
+		// end = t + 10000;
 		while (System.currentTimeMillis() < end) {
 			Status status = queue.poll();
 
 			if (status == null) {
-				i++;
 				// System.out.println("Content is null");
 			} else {
 				// System.out.println("Text: " + status.getText());
 				// for(HashtagEntity hashtag : status.getHashtagEntities()) {
 				// System.out.println("Hashtag: " + hashtag.getText());
 				// }
-				// System.out.println("User has " + status.getUser().getFollowersCount() + " Followers");
+				if (status.getHashtagEntities().length > 0)
+					i++;
+
 				all.add(status.getUser().getFollowersCount());
 				Record record = new Record(status);
 				String recordJson = record.toString();
@@ -174,8 +176,10 @@ public class KafkaTwitterIngestion {
 		producer.close();
 		Thread.sleep(5000);
 		twitterStream.shutdown();
-		System.out.println("Finished after " + i + " null statuses");
+		System.out.println("Finished");
 		System.out.println(j + " Tweets overall processed");
+		System.out.println(i + " Tweets with hashtags");
+		System.out.println((j - i) + " Tweets without hashtags");
 
 		// Collections.sort(all);
 		// int small = all.size() / 3;

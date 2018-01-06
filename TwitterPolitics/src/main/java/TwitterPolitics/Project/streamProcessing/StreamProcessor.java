@@ -74,7 +74,7 @@ public class StreamProcessor<K> {
 	private static Map<String, JSONArray> wordTopics;
 	private static String[] topicNames;
 	
-	private static final int MONET_UPDATE_INTERVAL_MIN = 2;
+	private static final int MONET_UPDATE_INTERVAL_MIN = 1; //TODO: 2
 	private static long lastMonetUpdateTime;
 //	private static List<TopicRecord> monetData;
 	private static HashMap<Tuple3<String, String, String>,Integer> monetData;
@@ -87,6 +87,9 @@ public class StreamProcessor<K> {
 	private static long noInitial;
 	private static long initial;
 	private static long initialOrAdditional;
+	
+	private static long cummulatedIni;
+	private static long cummulatedAdd;
 
 	public static void analyseStreamRecords() {
 		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
@@ -129,7 +132,7 @@ public class StreamProcessor<K> {
 		JavaPairDStream<String, Record> recordsWithInitialHashtags = records.filter(recordTuple -> {
 			// Record record = Record.getByJsonString(recordString._2);
 			Record record = recordTuple._2;
-
+			
 			if (record.getHashtagList().isEmpty()) {
 				empty++;
 				// System.out.println("Tweet discarded - no hashtags (" + empty + "): " + record.getText() + "///" +
@@ -142,13 +145,14 @@ public class StreamProcessor<K> {
 				String hashtag = iterator.next();
 				if (additionalHashtagsContains(hashtag) || initialHashtagsContains(hashtag)) {
 					initialOrAdditional++;
+					break;
 				}
 			}
 
 			for (Iterator<String> iterator = record.getHashtagList().iterator(); iterator.hasNext();) {
 				if (initialHashtagsContains(iterator.next())) {
 					initial++;
-					// System.out.println("Tweet accepted - initial hashtag found (" + initial + ")");
+//					System.out.println("Tweet " + recordTuple._1 + " accepted - initial hashtag found (" + initial + ")");
 					return true;
 				}
 			}
@@ -240,7 +244,6 @@ public class StreamProcessor<K> {
 //		 }
 //		 System.out.println(out);
 //		 });
-		 
 
 		filteredAdditionalHashtagOccurenceRatios.foreachRDD(rdd -> {
 			additionalHashtags = new ArrayList<>();
@@ -249,6 +252,12 @@ public class StreamProcessor<K> {
 
 		JavaPairDStream<String, Record> recordsWithValidAdditionalHashtags = records.filter(recordTuple -> {
 			Record record = recordTuple._2;
+			
+			//TODO: MACHT DAS SINN????? DAMIT NUR DIE ADD HIER GEZÄHLT WERDEN
+			for (Iterator<String> iterator = record.getHashtagList().iterator(); iterator.hasNext();) {
+				if (initialHashtagsContains(iterator.next()))
+					return false;
+			}
 
 			for (Iterator<String> iterator = record.getHashtagList().iterator(); iterator.hasNext();) {
 				if (additionalHashtagsContains(iterator.next()))
@@ -256,7 +265,17 @@ public class StreamProcessor<K> {
 			}
 			return false;
 		});
-
+		
+//		//Testausgabe
+		recordsWithInitialHashtags.foreachRDD(rdd -> {
+			cummulatedIni += rdd.count();
+			System.out.println("RDD (initial) contains " + rdd.count() + " entries. (" + cummulatedIni + " cummulated)");
+		});
+		recordsWithValidAdditionalHashtags.foreachRDD(rdd -> {
+			cummulatedAdd += rdd.count();
+			System.out.println("RDD (additional) contains " + rdd.count() + " entries. (" + cummulatedAdd + " cummulated)");
+		});
+		
 		JavaPairDStream<String, Record> validRecords = recordsWithInitialHashtags.union(recordsWithValidAdditionalHashtags);
 
 		JavaPairDStream<String, Record> cleanValidRecords = validRecords
@@ -454,11 +473,11 @@ public class StreamProcessor<K> {
 					lastMonetUpdateTime = System.currentTimeMillis();
 					
 					//Ausgabe Messwerte
-					System.out.println("---Current Status---");
-					System.out.println("Discarded tweets without any hashtag: " + empty);
-					System.out.println("Previously or finally discarded tweets with no initial hashtag: " + noInitial);
-					System.out.println("Tweets with initial hashtags: " + initial);
-					System.out.println("Tweets with initial or additional hashtags: " + initialOrAdditional);
+//					System.out.println("---Current Status---");
+//					System.out.println("Discarded tweets without any hashtag: " + empty);
+//					System.out.println("Previously or finally discarded tweets with no initial hashtag: " + noInitial);
+//					System.out.println("Tweets with initial hashtags: " + initial);
+//					System.out.println("Tweets with initial or additional hashtags: " + initialOrAdditional);
 				}
 				
 				Place place = g._2.getPlace();

@@ -11,7 +11,6 @@ import java.util.OptionalInt;
 import java.util.Random;
 
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.bson.Document;
 import org.json.JSONArray;
@@ -54,7 +53,7 @@ public class MongoDBConnector {
 		return new MongoClient(connectionString);
 	}
 
-	private static MongoCollection<Document> getCollection(Collections collection) {
+	public static MongoCollection<Document> getCollection(Collections collection) {
 		return getMongoDBClient().getDatabase(DB_NAME).getCollection(collection.getCollectionName());
 	}
 
@@ -62,26 +61,18 @@ public class MongoDBConnector {
 		getCollection(collection).drop();
 	}
 
-	@SuppressWarnings("deprecation")
 	public static void saveToMongo(JavaPairDStream<String, Record> records, Collections collection) {
-		// TODO: remove remove ;) and improve save method
-		removeCollection(collection);
 		records.toJavaDStream().map(f -> new Document(RECORD, f._2.getCleanedWords()).append(DELETION_COUNTER, System.currentTimeMillis()))
-				.foreachRDD(new Function<JavaRDD<Document>, Void>() {
-					private static final long serialVersionUID = 1L;
+				.foreachRDD(f -> {
 
-					@Override
-					public Void call(JavaRDD<Document> data) throws Exception {
-						System.out.println("Before insert: " + getCollection(collection).count() + " documents found. " + data.count() + " data elements");
-						if (data != null && data.count() > 0) {
-							getCollection(collection).insertMany(data.collect());
-							System.out.println("Inserted Data Done");
-						}
-						System.out.println("After insert: " + getCollection(collection).count() + " documents found");
-						return null;
+					System.out.println("Before insert: " + getCollection(collection).count() + " documents found. " + f.count() + " data elements");
+					if (f != null && f.count() > 0) {
+						getCollection(collection).insertMany(f.collect());
+						System.out.println("Inserted Data Done");
 					}
 
 				});
+		System.out.println("SaveToMongo called once");
 
 	}
 
@@ -95,7 +86,7 @@ public class MongoDBConnector {
 	public static JavaRDD<Document> getRDDs(Collections collection) {
 		Map<String, String> readOverrides = new HashMap<>();
 		readOverrides.put("collection", collection.getCollectionName());
-
+		// System.out.println("get " + getCollection(collection).count() + " from collection " + collection.getCollectionName());
 		return MongoSpark.load(StreamProcessor.getSparkContext(), ReadConfig.create(StreamProcessor.getSparkContext()).withOptions(readOverrides));
 	}
 
@@ -137,7 +128,7 @@ public class MongoDBConnector {
 
 	public static void saveTopicsToMongo(HashMap<Integer, List<String>> data) {
 
-		System.out.println("Before insert: " + getCollection(Collections.TOPICS).count() + " documents found");
+		// System.out.println("Before insert: " + getCollection(Collections.TOPICS).count() + " documents found");
 
 		List<Document> documents = new ArrayList<>();
 		data.forEach((i, l) -> {
@@ -148,7 +139,7 @@ public class MongoDBConnector {
 		});
 		removeCollection(Collections.TOPICS);
 		getCollection(Collections.TOPICS).insertMany(documents);
-		System.out.println("After insert: " + getCollection(Collections.TOPICS).count() + " documents found");
+		System.out.println("Created: " + getCollection(Collections.TOPICS).count() + " topics");
 	}
 
 	/**
@@ -163,6 +154,10 @@ public class MongoDBConnector {
 		// System.out.println("Random remainder: " + remainder + divisor.getAsInt());
 		getCollection(Collections.TWEETS).deleteMany(Filters.mod(DELETION_COUNTER, divisor.getAsInt(), remainder));
 		// printAllData(Collections.TWEETS);
+	}
+
+	public static void main(String[] args) {
+		dropTweets();
 	}
 
 }
